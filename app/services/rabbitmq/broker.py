@@ -4,43 +4,52 @@ import asyncio
 from icecream import ic
 from loguru import logger
 from . import utils
-from asyncio import Semaphore
-from app.services.schedule import utils
 
+from app.services.schedule_manage import schedule_utils
 from app.core import config
-sem = Semaphore(config.count_threads)
+
+async def process_message(message):
+    try:
+        # start getting schedule from database
+        await schedule_utils.get_schedule(group=message.body.decode(), reply_to=message.reply_to)
+
+        await message.ack()
+    except Exception as e:
+        logger.exception(f"Error processing message: {e}")
+        await message.nack(requeue=False)  # Optionally nack the message if processing fails
+
 
 
 async def start_schedule():
-    connection = await aio_pika.connect_robust(
-        os.getenv('rabbitmq_url')
-    )
+    try:
+        connection = await aio_pika.connect_robust(os.getenv('rabbitmq_url'))
+    except Exception as e:
+        logger.exception(f"Error connecting to RabbitMQ: {e}")
+        return False
+
     try:
         async with connection:
             queue_name = "queue_schedule"
-
             channel = await connection.channel()
 
-            queue = await channel.declare_queue(
-                queue_name,
-                auto_delete=True
-            )
+            # Create queue for schedule
+            queue = await channel.declare_queue(queue_name, auto_delete=True)
 
-            await channel.set_qos(config.count_threads)
+            # Set max queue simultaneous streams
+            await channel.set_qos(config.max_queue)
 
             logger.info("RabbitMQ connected and waiting")
 
+            # Consume messages from queue
             async with queue.iterator() as queue_iter:
+                tasks = []
                 async for message in queue_iter:
-                    async with sem:
-                        asyncio.create_task(utils.forming_schedule(message.body.decode(), reply_to=message.reply_to))
-
-
-            await asyncio.Future()
-
+                    task = asyncio.create_task(process_message(message))
+                    tasks.append(task)
+                    
+                    tasks = [t for t in tasks if not t.done()]
+                
+                # Wait for all remaining tasks to complete
+                await asyncio.gather(*tasks)
     except Exception as e:
-        logger.exception(f"Error RabbitMQ: {e}")
-
-
-
-
+        logger.exception(f"Error in RabbitMQ connection handling: {e}")

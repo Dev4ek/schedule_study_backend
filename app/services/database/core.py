@@ -2,7 +2,7 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy import create_engine
 import os
 from sqlalchemy.orm import sessionmaker
-from . import baseORM
+from . import base_ORM
 from loguru import logger
 
 
@@ -38,7 +38,7 @@ async def create_tables():
     logger.debug("creating tables...")
     engine = await get_engine(sync=True)
 
-    baseORM.Base.metadata.create_all(engine, checkfirst=True)
+    base_ORM.Base.metadata.create_all(engine, checkfirst=True)
     logger.info("tables created successfully")
     return True
 

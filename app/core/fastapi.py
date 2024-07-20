@@ -1,15 +1,8 @@
 import uvicorn
-from fastapi import FastAPI, Response, status
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.exceptions import HTTPException, RequestValidationError
-from pydantic import BaseModel
-from fastapi.requests import Request
 from fastapi.responses import JSONResponse
-from fastapi.security import OAuth2PasswordBearer
-import os
-from icecream import ic
 from app import routers
-from prometheus_fastapi_instrumentator import Instrumentator
 from . import config
 from loguru import logger
 
@@ -36,7 +29,7 @@ app.include_router(routers.ping.router)
 
 @app.middleware("http")
 async def maintenance_mode_middleware(request, call_next):
-    if config.MAINTENANCE_MODE == True:
+    if config.MAINTENANCE_MODE:
         return JSONResponse(
             status_code=503, 
             content={"message": "Сервер временно недоступен. Идут технические работы."}

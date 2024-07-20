@@ -19,9 +19,9 @@ if __name__ == "__main__":
 
     async def main():
         await asyncio.gather(
-            # database.core.create_tables(),
+            database.core.create_tables(),
             fastapi.start(),
-            # rabbitmq.start_schedule()
+            rabbitmq.start_schedule()
         )
     
 

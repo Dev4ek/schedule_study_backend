@@ -1,15 +1,19 @@
 import asyncio
+import json
 import aio_pika
-import aio_pika.abc
+from aio_pika.abc import AbstractIncomingMessage
 import os
 from icecream import ic
 from loguru import logger
 
 
-async def send_in_queue(group: str) -> str:
+async def send_in_queue_schedule(
+        group: str
+) -> str:
+    connection = None
     try:
         logger.debug(f"send request in queue rabbit. {group}")
-        
+
         connection: aio_pika.RobustConnection = await aio_pika.connect_robust(
             os.getenv('rabbitmq_url')
         )
@@ -20,11 +24,15 @@ async def send_in_queue(group: str) -> str:
 
         response = asyncio.Future()
 
+        # consume response from queue schedule
         async def callback(message: aio_pika.IncomingMessage) -> None:
-            response.set_result(message.body.decode())
+            if not response.done():
+                response.set_result(message.body.decode())
+                logger.debug(f"Received response from queue")  
 
         await temp_queue.consume(callback)
 
+        # publish message to queue schedule 
         await channel.default_exchange.publish(
             aio_pika.Message(
                 body=group.encode(),
@@ -33,22 +41,28 @@ async def send_in_queue(group: str) -> str:
             routing_key=routing_key
         )
 
+        logger.debug("Message published to queue")  
+
         result = await response
+
     except Exception as e:
         logger.exception(f"CRITICAL ERROR send request in queue rabbit: {group}")
         result = None
 
     finally:
-        await connection.close()
-
+        if connection:
+            await connection.close()
 
     return result
 
 
 
-async def response_in_queue(body, reply_to) -> bool:
+async def response_in_queue_schedule(
+        schedule: str, # schedule which need send to rabbitmq
+        reply_to: AbstractIncomingMessage # name temp queue which send response
+) -> bool:
     try:
-        logger.debug(f"send response rabbit.")
+        logger.debug(f"send response rabbit to queue {reply_to}.") 
         
         connection: aio_pika.RobustConnection = await aio_pika.connect_robust(
             os.getenv('rabbitmq_url')
@@ -58,14 +72,17 @@ async def response_in_queue(body, reply_to) -> bool:
 
         await channel.default_exchange.publish(
             aio_pika.Message(
-                body=body.encode(),
+                body=schedule.encode(),
             ),
             routing_key=reply_to
         )
 
+        logger.debug(f"Response sent to queue {reply_to}")
+
     except Exception as e:
-        logger.exception(f"ERROR send response  schedule rabbit")
+        logger.exception(f"ERROR send response schedule rabbit")
         return False
 
     finally:
-        await connection.close()
+        if connection:
+            await connection.close()
