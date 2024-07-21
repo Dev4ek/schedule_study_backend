@@ -4,7 +4,7 @@ from loguru import logger
 
 
 
-async def check_schedule(group):
+async def check_schedule(group: str) -> str | None:
     try:
         shedule_key = "schedule:" + group
         
@@ -19,13 +19,13 @@ async def check_schedule(group):
         await redis.close()
     
         return schedule.decode() if schedule else None
-    except Exception as e:
+    except Exception:
         logger.exception(f"ERROR checking schedule in cache redis: key {group}")
         return None
 
 
 
-async def set_schedule(group, schedule):
+async def set_schedule(group: str, schedule: str) -> bool:
     try:
         shedule_key = "schedule:" + group
 
@@ -43,6 +43,6 @@ async def set_schedule(group, schedule):
         await redis.close()
 
         return True
-    except Exception as e:
+    except Exception:
         logger.exception(f"ERROR set schedule in cache redis: key {group}")
         return False

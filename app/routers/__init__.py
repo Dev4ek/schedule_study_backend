@@ -1,1 +1,1 @@
-from . import ping, schedule
+from . import time, schedule

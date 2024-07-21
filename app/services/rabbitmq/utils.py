@@ -45,7 +45,7 @@ async def send_in_queue_schedule(
 
         result = await response
 
-    except Exception as e:
+    except Exception:
         logger.exception(f"CRITICAL ERROR send request in queue rabbit: {group}")
         result = None
 
@@ -79,7 +79,7 @@ async def response_in_queue_schedule(
 
         logger.debug(f"Response sent to queue {reply_to}")
 
-    except Exception as e:
+    except Exception:
         logger.exception(f"ERROR send response schedule rabbit")
         return False
 

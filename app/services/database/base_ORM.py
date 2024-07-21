@@ -6,16 +6,23 @@ class Base(DeclarativeBase):
     pass
 
 
+
 class Schedule(Base):
     __tablename__ = 'schedule'
 
     id: Mapped[Integer] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    num_day: Mapped[int] = mapped_column(SMALLINT())
     group: Mapped[String] = mapped_column(String(10), index=True)
     schedule: Mapped[str] = mapped_column()
-    num_lesson: Mapped[int] = mapped_column(SMALLINT(), ForeignKey("time.num_lesson"))
-    
-    time: Mapped["Time"] = relationship("Time", back_populates="num_lesson")
 
+    today: Mapped[Boolean] = mapped_column(Boolean)
+    tomorrow: Mapped[Boolean] = mapped_column(Boolean)
+
+    time_0: Mapped[str] = mapped_column(String(50), nullable=True)
+    time_1: Mapped[str] = mapped_column(String(50), nullable=True)
+    time_2: Mapped[str] = mapped_column(String(50), nullable=True)
+    time_3: Mapped[str] = mapped_column(String(50), nullable=True)
+    time_4: Mapped[str] = mapped_column(String(50), nullable=True)
 
 
 
@@ -23,14 +30,7 @@ class Time(Base):
     __tablename__ = 'time'
 
     id: Mapped[Integer] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    day: Mapped[String] = mapped_column(String(30))
+    num_day: Mapped[int] = mapped_column(SMALLINT())
     time: Mapped[String] = mapped_column(String(50))
-    num_lesson: Mapped[int] = mapped_column(SMALLINT(), unique=True)
+    num_lesson: Mapped[int] = mapped_column(SMALLINT())
 
-    schedule: Mapped["Schedule"] = relationship("Schedule", back_populates="num_lesson")
-
-    
-
-
-    
-    

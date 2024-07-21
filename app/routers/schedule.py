@@ -1,4 +1,5 @@
 import json
+from typing import Optional
 from fastapi import APIRouter, Depends, Query, Body
 from fastapi.responses import JSONResponse
 from ..core import dependencies, config
@@ -70,13 +71,25 @@ async def get_schedule(
 async def set_schedule(
     token: str = Depends(dependencies.oauth2_scheme), 
     group: str = Query(..., description="Название группы, например, Исп-232"),
-    num_lesson: int = Query(..., description="Номер пары"),
-    schedule: list[dict] = Body(..., description="Расписание для группы в формате списка JSON")
+    day: str = Query(..., description="День недели"),
+    schedule: dict = Body(..., description="Расписание для группы в формате JSON"),
+    today: Optional[bool] = Query(False, description="Если True, то расписание сегодня"),
+    tomorrow: Optional[bool] = Query(False, description="Если True, то расписание завтра")
     ) -> JSONResponse: 
+
 
     logger.info(f"set schedule for group: {group}")
 
-    setting = await schedule_manage.schedule_utils.set_schedule(group=group, schedule=schedule, num_lesson=num_lesson)
+
+    num_day = dependencies.num_day[day]
+
+    setting = await schedule_manage.schedule_utils.set_schedule(
+                                                                group=group,
+                                                                schedule=schedule,
+                                                                num_day=num_day,
+                                                                today=today,
+                                                                tomorrow=tomorrow
+                                                                )
 
     if setting:
 

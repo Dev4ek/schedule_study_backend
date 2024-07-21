@@ -14,8 +14,8 @@ async def process_message(message):
         await schedule_utils.get_schedule(group=message.body.decode(), reply_to=message.reply_to)
 
         await message.ack()
-    except Exception as e:
-        logger.exception(f"Error processing message: {e}")
+    except Exception:
+        logger.exception(f"Error processing message")
         await message.nack(requeue=False)  # Optionally nack the message if processing fails
 
 
@@ -23,8 +23,8 @@ async def process_message(message):
 async def start_schedule():
     try:
         connection = await aio_pika.connect_robust(os.getenv('rabbitmq_url'))
-    except Exception as e:
-        logger.exception(f"Error connecting to RabbitMQ: {e}")
+    except Exception:
+        logger.exception(f"Error connecting to RabbitMQ")
         return False
 
     try:
@@ -51,5 +51,5 @@ async def start_schedule():
                 
                 # Wait for all remaining tasks to complete
                 await asyncio.gather(*tasks)
-    except Exception as e:
-        logger.exception(f"Error in RabbitMQ connection handling: {e}")
+    except Exception:
+        logger.exception(f"Error in RabbitMQ connection handling")
