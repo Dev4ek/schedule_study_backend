@@ -1,6 +1,8 @@
-from datetime import datetime, time, date
+from datetime import datetime, time, date, timedelta
 import pytz
 from loguru import logger
+
+from app import models
 from .. import database as db
 from icecream import ic
 import calendar
@@ -119,3 +121,21 @@ async def get_day_and_week_number():
     except Exception:
         logger.exception(f"ERROR getting week number")
         return None
+    
+
+
+
+async def get_date_by_day(num_day):
+    today = datetime.now(moscow_tz)
+
+    current_weekday = today.weekday()
+
+    # Вычисляем количество дней до следующего целевого дня недели
+    days_until_target = (num_day - 1 - current_weekday + 7) % 7
+
+    next_date = today + timedelta(days=days_until_target)
+    
+    str_date = f"{next_date.day} {models.Num_month[next_date.month]}"
+
+    return str_date
+    

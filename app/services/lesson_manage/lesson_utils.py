@@ -160,10 +160,10 @@ async def get_lessons(
                 final_schedule = []
                 for day in sorted_schedule_keys:
                     lessons = grouped_schedule[day]
-                    
+
                     schedule = {
                                 "day": models.Num_day[day] + " (Сегодня)" if num_day == day else models.Num_day[day],
-                                "date": "---",  # Finish the task...
+                                "date": await time_utils.get_date_by_day(day),
                                 "lessons": [
                                     {
                                         "item": lesson.item + f" ({lesson.auditory})",
@@ -175,7 +175,6 @@ async def get_lessons(
                                     for lesson in lessons
                                 ]
                             }
-                    
                     final_schedule.append(schedule)
 
 
