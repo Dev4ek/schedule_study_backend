@@ -9,7 +9,6 @@ load_dotenv(dotenv_path)
 
 logger.add(f'logs/{datetime.datetime.now()}.log', rotation="3:00", level="DEBUG")
 
-
 if __name__ == "__main__":
     from app.core import fastapi
     from app.services import rabbitmq

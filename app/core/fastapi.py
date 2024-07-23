@@ -23,7 +23,7 @@ app.add_middleware(
 )
 
 
-app.include_router(routers.schedule.router)
+app.include_router(routers.lesson.router)
 app.include_router(routers.time.router)
 
 

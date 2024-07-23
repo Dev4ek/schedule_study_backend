@@ -4,14 +4,14 @@ import asyncio
 from icecream import ic
 from loguru import logger
 from . import utils
+from .. import lesson_manage
 
-from app.services.schedule_manage import schedule_utils
 from app.core import config
 
 async def process_message(message):
     try:
         # start getting schedule from database
-        await schedule_utils.get_schedule(group=message.body.decode(), reply_to=message.reply_to)
+        await lesson_manage.get_lessons(group=message.body.decode(), reply_to=message.reply_to)
 
         await message.ack()
     except Exception:

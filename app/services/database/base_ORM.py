@@ -6,27 +6,24 @@ class Base(DeclarativeBase):
     pass
 
 
-
-class Schedule(Base):
-    __tablename__ = 'schedule'
+class Lessons(Base):
+    __tablename__ = 'lesson'
 
     id: Mapped[Integer] = mapped_column(Integer, primary_key=True, autoincrement=True)
     num_day: Mapped[int] = mapped_column(SMALLINT())
     group: Mapped[String] = mapped_column(String(10), index=True)
-    schedule: Mapped[str] = mapped_column()
 
-    today: Mapped[Boolean] = mapped_column(Boolean)
-    tomorrow: Mapped[Boolean] = mapped_column(Boolean)
-
-    time_0: Mapped[str] = mapped_column(String(50), nullable=True)
-    time_1: Mapped[str] = mapped_column(String(50), nullable=True)
-    time_2: Mapped[str] = mapped_column(String(50), nullable=True)
-    time_3: Mapped[str] = mapped_column(String(50), nullable=True)
-    time_4: Mapped[str] = mapped_column(String(50), nullable=True)
-
+    item: Mapped[str] = mapped_column(nullable=True)
+    num_lesson: Mapped[int] = mapped_column(SMALLINT())
+    event_time: Mapped[str] = mapped_column(String(50), nullable=True)
+    
+    week: Mapped[int] = mapped_column(SMALLINT())
+    teacher: Mapped[String] = mapped_column(String(100), nullable=True)
+    auditory: Mapped[String] = mapped_column(String(50), nullable=True)
+    
 
 
-class Time(Base):
+class Times(Base):
     __tablename__ = 'time'
 
     id: Mapped[Integer] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -34,3 +31,22 @@ class Time(Base):
     time: Mapped[String] = mapped_column(String(50))
     num_lesson: Mapped[int] = mapped_column(SMALLINT())
 
+
+class Teachers(Base):
+    __tablename__ = 'teacher'
+
+    id: Mapped[Integer] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    full_name: Mapped[String] = mapped_column(String(100))
+    short_name: Mapped[String] = mapped_column(String(50))
+
+class Groups(Base):
+    __tablename__ = 'group'
+
+    id: Mapped[Integer] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    group: Mapped[String] = mapped_column(String(30))
+
+class Auditories(Base):
+    __tablename__ = 'auditory'
+
+    id: Mapped[Integer] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    auditory: Mapped[String] = mapped_column(String(50))

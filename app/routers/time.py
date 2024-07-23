@@ -2,9 +2,10 @@ import json
 from fastapi import APIRouter, Depends, Query, Body
 from fastapi.responses import JSONResponse
 from ..core import dependencies, config
-from ..services import redis, rabbitmq, schedule_manage
+from ..services import redis, rabbitmq, lesson_manage
 from loguru import logger
 import asyncio
+from .. import models
 
 router = APIRouter()
 
@@ -16,9 +17,10 @@ async def set_time(
     time: str = Body(..., description="Время для пары")
     ) -> JSONResponse: 
     
-    num_day = dependencies.num_day[day]
+    num_day = models.Day_num[day]
 
-    setting = await schedule_manage.time_utils.set_time(num_day=num_day, num_lesson=num_lesson, time=time)
+
+    setting = await lesson_manage.time_utils.set_time(num_day=num_day, num_lesson=num_lesson, time=time)
 
     if setting:
         return JSONResponse(content={"message": "Время успешно установлено"}, status_code=200)

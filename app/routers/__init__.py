@@ -1,1 +1,1 @@
-from . import time, schedule
+from . import time, lesson

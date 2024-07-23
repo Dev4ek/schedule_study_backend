@@ -1,8 +1,9 @@
-from datetime import datetime, time
+from datetime import datetime, time, date
 import pytz
 from loguru import logger
 from .. import database as db
 from icecream import ic
+import calendar
 
 
 
@@ -44,10 +45,10 @@ async def set_time(
 
                 # form qery to get schedule from database
                 query_check = (
-                    db.select(db.table.Time.time)
+                    db.select(db.table.Times.time)
                     .where(db.and_(
-                            db.table.Time.num_lesson==num_lesson,
-                            db.table.Time.num_day==num_day
+                            db.table.Times.num_lesson==num_lesson,
+                            db.table.Times.num_day==num_day
                             )
                         )   
                     .limit(1)
@@ -61,10 +62,10 @@ async def set_time(
                 if existing_time:
                     
                     query = (
-                        db.update(db.table.Time)
+                        db.update(db.table.Times)
                          .where(db.and_(
-                                    db.table.Time.num_lesson==num_lesson,
-                                    db.table.Time.num_day==num_day
+                                    db.table.Times.num_lesson==num_lesson,
+                                    db.table.Times.num_day==num_day
                                     )
                                 ) 
                         .values(time=time)
@@ -72,7 +73,7 @@ async def set_time(
 
                 else:
                     query = (
-                        db.insert(db.table.Time)
+                        db.insert(db.table.Times)
                         .values(
                             num_lesson=num_lesson,
                             time=time,
@@ -89,43 +90,32 @@ async def set_time(
         return False
     
 
-
-async def time_for_lessons(num_day) -> dict:
-    logger.debug("time_for_lessons day: {num_day}")
-
-    time_dict = {
-                "time_0": None,
-                "time_1": None,
-                "time_2": None,
-                "time_3": None,
-                "time_4": None,
-             }
-
+async def get_day_and_week_number():
+    logger.debug("get_week_number")
 
     try:
-        # open session to database
-        async with await db.get_session() as session:
-            async with session.begin():
+      
+        today = datetime.now(moscow_tz).date()
 
-                # get time lessons
-                query_time_lessons = (
-                    db.select(db.table.Time.time, db.table.Time.num_lesson)
-                    .filter_by(num_day=num_day)
-                )
-                
+        num_day = calendar.weekday(today.year, today.month, today.day) + 1
 
-                # execute query to database and get time lessons as list of tuples
-                time_lessons_object = await session.execute(query_time_lessons)
-                time_lessons = time_lessons_object.all()
+        first_day = date(today.year, today.month, 1)
 
-                # fill time_dict with time lessons
-                for time_data in time_lessons:
-                    num = time_data[1]
-                    time = time_data[0]
+        # Вычисляем количество дней между первым днем месяца и заданной датой
+        days_since_start = (today - first_day).days
 
-                    time_dict[f"time_{num}"] = time
+        # Делим количество дней на 7 и округляем вверх, чтобы получить номер недели
+        week_number = (days_since_start // 7) + 1
+
+        if week_number == 3 or week_number == 1:
+            week_number = 1
+        else:
+            week_number = 2
+
+
+        return num_day, week_number
+
 
     except Exception:
-        logger.exception(f"ERROR getting time lessons from database")
-        
-    return time_dict
+        logger.exception(f"ERROR getting week number")
+        return None
