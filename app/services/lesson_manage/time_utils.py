@@ -139,3 +139,30 @@ async def get_date_by_day(num_day):
 
     return str_date
     
+
+
+async def check_time_lessons(event_time: list):
+    today = datetime.now(moscow_tz)
+
+    # event_time = ["20:25 - 21:00"]
+
+    if len(event_time) == 1:
+        # event_time = ['8:30 - 10:00']
+        
+        current_time = datetime.strptime(f"{today.hour}:{today.minute}", "%H:%M")
+
+        start_time_str, end_time_str = event_time[0].split(" - ")
+
+        # Convert the end times to datetime objects
+        end_time = datetime.strptime(end_time_str, "%H:%M")
+        start_time = datetime.strptime(start_time_str, "%H:%M")
+
+
+        if current_time > start_time and current_time < end_time:
+            
+            left_minutes = int((end_time - current_time).total_seconds() / 60)
+    
+            return True, f"До конца {left_minutes} минут"
+    return False, ""
+        
+    

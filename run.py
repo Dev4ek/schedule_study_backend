@@ -22,7 +22,10 @@ if __name__ == "__main__":
             fastapi.start(),
             rabbitmq.start_schedule()
         )
-    
+
+
+
+
 
     loop.run_until_complete(main())
     loop.close()

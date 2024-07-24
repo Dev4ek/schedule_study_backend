@@ -23,78 +23,87 @@ async def set_lesson(
         # open session to database
         async with await db.get_session() as session:
             async with session.begin():
-                
-                # checking group existence in database
-                query_check = (
-                    db.select(db.table.Lessons.id)
-                    .filter_by(
-                        group=group, 
-                        num_day=num_day, 
-                        num_lesson=lesson.num_lesson,
-                        week=lesson.week,
-                        )
-                    )
-
-                # do qeury to database
-                result = await session.execute(query_check)
-
-                # getting result
-                existing_schedule = result.scalar_one_or_none()
 
 
-                time_subquery = (
-                        db.select(db.table.Times.time)
-                        .where(db.and_(
-                                db.table.Times.num_lesson==lesson.num_lesson,
-                                db.table.Times.num_day==num_day
-                                )
-                            )
-                        .limit(1)
-                        .scalar_subquery()
-                    )
-
-
-                # if schedule exists in database, update it OR insert new group with new schedule
-                if existing_schedule:
-                    query = (
-                        db.update(db.table.Lessons)
+                async def set_lesson_in_db(num_week):
+                    # checking group existence in database
+                    query_check = (
+                        db.select(db.table.Lessons.id)
                         .filter_by(
-                                group=group,
-                                num_day=num_day,
-                                num_lesson=lesson.num_lesson,
-                                week=lesson.week,
-                                )
-                        .values(
-                            item=lesson.item,
-                            teacher=lesson.teacher,
-                            auditory=lesson.auditory,
-
-                            event_time=time_subquery
-                            )
-                    )
-
-                # if schedule not exists in database, insert new group with new schedule
-                else:
-
-                    query = (
-                        db.insert(db.table.Lessons)
-
-                        .values(
-                            num_day=num_day,
-                            group=group,
-                            item=lesson.item,
+                            group=group, 
+                            num_day=num_day, 
                             num_lesson=lesson.num_lesson,
-                            teacher=lesson.teacher,
-                            auditory=lesson.auditory,
-                            week=lesson.week,
-
-                            event_time=time_subquery
+                            week=num_week,
                             )
-                    )
+                        )
 
-                # do qeury to database
-                await session.execute(query)
-                
+                    # do qeury to database
+                    result = await session.execute(query_check)
+
+                    # getting result
+                    existing_schedule = result.scalar_one_or_none()
+
+
+                    time_subquery = (
+                            db.select(db.table.Times.time)
+                            .where(db.and_(
+                                    db.table.Times.num_lesson==lesson.num_lesson,
+                                    db.table.Times.num_day==num_day
+                                    )
+                                )
+                            .limit(1)
+                            .scalar_subquery()
+                        )
+
+
+                    # if schedule exists in database, update it OR insert new group with new schedule
+                    if existing_schedule:
+                        query = (
+                            db.update(db.table.Lessons)
+                            .filter_by(
+                                    group=group,
+                                    num_day=num_day,
+                                    num_lesson=lesson.num_lesson,
+                                    week=num_week,
+                                    )
+                            .values(
+                                item=lesson.item,
+                                teacher=lesson.teacher,
+                                auditory=lesson.auditory,
+                                event_time=time_subquery
+                                )
+                        )
+
+                    # if schedule not exists in database, insert new group with new schedule
+                    else:
+
+                        query = (
+                            db.insert(db.table.Lessons)
+
+                            .values(
+                                num_day=num_day,
+                                group=group,
+                                item=lesson.item,
+                                num_lesson=lesson.num_lesson,
+                                teacher=lesson.teacher,
+                                auditory=lesson.auditory,
+                                week=num_week,
+
+                                event_time=time_subquery
+                                )
+                        )
+
+                    # do qeury to database
+                    await session.execute(query)
+
+
+
+                if lesson.week == 0:
+                    for week in range(1, 3):
+                        await set_lesson_in_db(week)
+                else:
+                    await set_lesson_in_db(lesson.week)
+
                 return True
     except Exception:
         logger.exception(f"ERROR setting schedule to database")
@@ -129,7 +138,7 @@ async def get_lessons(
                         db.table.Lessons.auditory, 
                         db.table.Lessons.event_time
                     )
-                    .filter_by(group=group)
+                    .filter_by(group=group, week=num_week)
                     .order_by(db.table.Lessons.num_day.asc(), db.table.Lessons.num_lesson.asc())                 
                 )
 
@@ -139,9 +148,22 @@ async def get_lessons(
                 # Getting result
                 schedule_data: list[models.Lesson_in_db] = result.all()
 
+                # Generate schedule
+                final_schedule = []
+
+                schedule_info = {
+                    "group": group,
+                    "week": num_week,
+                    "schedule": final_schedule
+                }
+
+
+
                 # If schedule does not exist, return false
                 if not schedule_data:
                     logger.info(f"schedule not in database for group: {group}")
+
+                    await rabbitmq.response_in_queue_schedule(json.dumps(schedule_info), reply_to)
                     return False
 
                 # Group lessons by days
@@ -156,33 +178,38 @@ async def get_lessons(
                 index = sorted_days.index(num_day)
                 sorted_schedule_keys = sorted_days[index:] + sorted_days[:index]
 
-                # Generate schedule
-                final_schedule = []
+
                 for day in sorted_schedule_keys:
                     lessons = grouped_schedule[day]
+
+                    lessons_in_schedule = []
+
+                    for lesson in lessons:
+                        event_time = lesson.event_time.split(", ")
+
+                        active, time = await time_utils.check_time_lessons(event_time)
+
+                        lessons_in_schedule.append({
+                                        "item": lesson.item + f" ({lesson.auditory})",
+                                        "teacher": lesson.teacher,
+                                        "event_time": event_time,
+                                        "active": active,
+                                        "time": time
+                                    })
+                        
+
+
+
 
                     schedule = {
                                 "day": models.Num_day[day] + " (Сегодня)" if num_day == day else models.Num_day[day],
                                 "date": await time_utils.get_date_by_day(day),
-                                "lessons": [
-                                    {
-                                        "item": lesson.item + f" ({lesson.auditory})",
-                                        "teacher": lesson.teacher,
-                                        "event_time": [lesson.event_time],
-                                        "active": False,
-                                        "time": ""
-                                    }
-                                    for lesson in lessons
-                                ]
+                                "lessons": lessons_in_schedule
                             }
                     final_schedule.append(schedule)
 
 
-                schedule_info = {
-                    "group": group,
-                    "week": num_week,
-                    "schedule": final_schedule
-                }
+
 
 
 

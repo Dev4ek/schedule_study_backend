@@ -12,7 +12,7 @@ class Lesson_input(BaseModel):
     num_lesson: Annotated[int, Field(strict=True, ge=0, le=4, description="Номер пары")]
     teacher: str
     auditory: str
-    week: Annotated[int, Field(strict=True, ge=1, le=2)]
+    week: Annotated[int, Field(strict=True, ge=0, le=2)]
 
 
 
