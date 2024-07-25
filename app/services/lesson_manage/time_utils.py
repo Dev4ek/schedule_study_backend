@@ -12,25 +12,6 @@ import calendar
 # set timezone to Moscow
 moscow_tz = pytz.timezone('Europe/Moscow')
 
-async def timing_couples(schedule: dict) -> dict:
-
-    ...
-    ...
-    ...
-    
-    
-    # time_now = datetime.now(moscow_tz).time()
-
-    # for event_time in schedule[0]['event_time']:
-
-    #     time_start_str = event_time.split(' - ')[0]
-
-    #     if time_now < time.fromisoformat(time_start_str):
-    #         ...
-    #     else:
-    #         schedule[0]['time'] = f"{time_start_str} - {event_time.split(' - ')[1]}"
-    #         break
-
 
 
 async def set_time(
@@ -139,30 +120,56 @@ async def get_date_by_day(num_day):
 
     return str_date
     
+async def correct_str_minites(minutes: int):
+
+    # minutes = 5
+
+    minutes_last_symbol = str(minutes)[-1]
+
+    if minutes_last_symbol == "1":
+        return f"{minutes} минута"
+    elif minutes == 11 or minutes == 12 or minutes == 13 or minutes == 14:
+        return f"{minutes} минут"
+
+    elif minutes_last_symbol == "2" or minutes_last_symbol == "3" or minutes_last_symbol == "4":
+        return f"{minutes} минуты"
+    else:
+        return f"{minutes} минут"
 
 
 async def check_time_lessons(event_time: list):
     today = datetime.now(moscow_tz)
 
-    # event_time = ["20:25 - 21:00"]
+    current_time = datetime.strptime(f"{today.hour}:{today.minute}", "%H:%M")
+    
 
-    if len(event_time) == 1:
-        # event_time = ['8:30 - 10:00']
-        
-        current_time = datetime.strptime(f"{today.hour}:{today.minute}", "%H:%M")
+    for index, _event_time in enumerate(event_time):
+        start_time_str, end_time_str = _event_time.split(" - ")
 
-        start_time_str, end_time_str = event_time[0].split(" - ")
-
-        # Convert the end times to datetime objects
-        end_time = datetime.strptime(end_time_str, "%H:%M")
         start_time = datetime.strptime(start_time_str, "%H:%M")
+        end_time = datetime.strptime(end_time_str, "%H:%M")
 
-
-        if current_time > start_time and current_time < end_time:
-            
+        if start_time <= current_time <= end_time:
             left_minutes = int((end_time - current_time).total_seconds() / 60)
-    
-            return True, f"До конца {left_minutes} минут"
-    return False, ""
+            correct_str_min = await correct_str_minites(left_minutes)
+
+            if index == len(event_time) - 1:
+                return "active", f"До конца {correct_str_min}"
+            else:
+                return "active", f"До перерыва {correct_str_min}"
+
+        elif current_time < start_time:
+            left_minutes = int((start_time - current_time).total_seconds() / 60)
+            correct_str_min = await correct_str_minites(left_minutes)
+
+            if index == 0:
+                if left_minutes < 60:
+                    return "wait", f"До начала {correct_str_min}"
+                return None, ""
+
+            else:
+                return "wait", f"До продолжения {correct_str_min}"
+
+    return None, ""
         
-    
+

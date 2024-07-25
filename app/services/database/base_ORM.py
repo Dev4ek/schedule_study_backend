@@ -15,7 +15,6 @@ class Lessons(Base):
 
     item: Mapped[str] = mapped_column(nullable=True)
     num_lesson: Mapped[int] = mapped_column(SMALLINT())
-    event_time: Mapped[str] = mapped_column(String(50), nullable=True)
     
     week: Mapped[int] = mapped_column(SMALLINT())
     teacher: Mapped[String] = mapped_column(String(100), nullable=True)

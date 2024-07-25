@@ -80,10 +80,6 @@ async def get_lessons(
         # str to json schedule
         schedule = json.loads(schedule_str)
 
-        # processing time now in schedule
-        schedule_time = await lesson_manage.time_utils.timing_couples(schedule)
-
-
         # save schedule in cache redis
         # await redis.set_schedule(group, schedule_time)
 
