@@ -163,7 +163,7 @@ async def check_time_lessons(event_time: list):
             correct_str_min = await correct_str_minites(left_minutes)
 
             if index == 0:
-                if left_minutes < 60:
+                if left_minutes < 120:
                     return "wait", f"До начала {correct_str_min}"
                 return None, ""
 

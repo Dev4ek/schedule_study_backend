@@ -10,108 +10,6 @@ import pydantic
 from app import models
 
 
-# async def set_lesson(
-#         lesson: models.Lesson_input, # lesson which need set
-# ) -> bool:
-    
-#     logger.debug("insert lesson for group: {group}")
-
-#     group = lesson.group
-#     num_day = models.Day_num[lesson.day]
-
-#     try:
-#         # open session to database
-#         async with await db.get_session() as session:
-#             async with session.begin():
-
-
-#                 async def set_lesson_in_db(num_week):
-#                     # checking group existence in database
-#                     query_check = (
-#                         db.select(db.table.Lessons.id)
-#                         .filter_by(
-#                             group=group, 
-#                             num_day=num_day, 
-#                             num_lesson=lesson.num_lesson,
-#                             week=num_week,
-#                             )
-#                         )
-
-#                     # do qeury to database
-#                     result = await session.execute(query_check)
-
-#                     # getting result
-#                     existing_schedule = result.scalar_one_or_none()
-
-
-#                     time_subquery = (
-#                             db.select(db.table.Times.time)
-#                             .where(db.and_(
-#                                     db.table.Times.num_lesson==lesson.num_lesson,
-#                                     db.table.Times.num_day==num_day
-#                                     )
-#                                 )
-#                             .limit(1)
-#                             .scalar_subquery()
-#                         )
-
-
-#                     # if schedule exists in database, update it OR insert new group with new schedule
-#                     if existing_schedule:
-#                         query = (
-#                             db.update(db.table.Lessons)
-#                             .filter_by(
-#                                     group=group,
-#                                     num_day=num_day,
-#                                     num_lesson=lesson.num_lesson,
-#                                     week=num_week,
-#                                     )
-#                             .values(
-#                                 item=lesson.item,
-#                                 teacher=lesson.teacher,
-#                                 auditory=lesson.auditory,
-#                                 event_time=time_subquery
-#                                 )
-#                         )
-
-#                     # if schedule not exists in database, insert new group with new schedule
-#                     else:
-
-#                         query = (
-#                             db.insert(db.table.Lessons)
-
-#                             .values(
-#                                 num_day=num_day,
-#                                 group=group,
-#                                 item=lesson.item,
-#                                 num_lesson=lesson.num_lesson,
-#                                 teacher=lesson.teacher,
-#                                 auditory=lesson.auditory,
-#                                 week=num_week,
-
-#                                 event_time=time_subquery
-#                                 )
-#                         )
-
-#                     # do qeury to database
-#                     await session.execute(query)
-
-
-
-#                 if lesson.week == 0:
-#                     for week in range(1, 3):
-#                         await set_lesson_in_db(week)
-#                 else:
-#                     await set_lesson_in_db(lesson.week)
-
-#                 return True
-#     except Exception:
-#         logger.exception(f"ERROR setting schedule to database")
-#         return False
-
-
-
-
 
 async def set_lesson(
         lesson: models.Lesson_input, # lesson which need set
@@ -284,16 +182,24 @@ async def get_lessons(
 
                 status_time = True
 
-
                 for day in sorted_schedule_keys:
                     lessons = grouped_schedule[day]
 
                     lessons_in_schedule = []
 
                     for lesson in lessons:
-                        event_time = time_key[(lesson.num_day, lesson.num_lesson)]
+                        try:
+                            event_time = time_key[(lesson.num_day, lesson.num_lesson)]
 
-                        status, time = await time_utils.check_time_lessons(event_time)
+                            if lesson.num_day is num_day:
+                                status, time = await time_utils.check_time_lessons(event_time)
+                            else:
+                                status, time = False, ""
+
+                        except KeyError:
+                            event_time = [""]
+                            status, time = False, ""
+
 
 
                         lessons_in_schedule.append({
@@ -307,19 +213,12 @@ async def get_lessons(
                             status_time = False
                         
 
-
-
-
                     schedule = {
                                 "day": models.Num_day[day] + " (Сегодня)" if num_day == day else models.Num_day[day],
                                 "date": await time_utils.get_date_by_day(day),
                                 "lessons": lessons_in_schedule
                             }
                     final_schedule.append(schedule)
-
-
-
-
 
 
                 final_schedule_str = json.dumps(schedule_info)

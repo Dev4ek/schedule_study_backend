@@ -12,8 +12,8 @@ router = APIRouter()
 @router.post("/set/time", tags=["Время"])
 async def set_time(
     token: str = Depends(dependencies.oauth2_scheme), # token authentication
-    day: str = Query(..., description="День недели, например, Понедельник, Вторник..."),
-    num_lesson: int = Query(..., description="Номер пары, 0-4, где 0 это классный час", ge=0, le=4),
+    day: str = Body(..., description="День недели, например, Понедельник, Вторник..."),
+    num_lesson: int = Body(..., description="Номер пары, 0-4, где 0 это классный час", ge=0, le=4),
     time: str = Body(..., description="Время для пары")
     ) -> JSONResponse: 
     
