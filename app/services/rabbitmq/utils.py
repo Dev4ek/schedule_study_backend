@@ -62,7 +62,7 @@ async def response_in_queue_schedule(
         reply_to: AbstractIncomingMessage # name temp queue which send response
 ) -> bool:
     try:
-        logger.debug(f"send response rabbit to queue {reply_to}.") 
+        logger.debug(f"send response schedule to rabbit queue {reply_to}.") 
         
         connection: aio_pika.RobustConnection = await aio_pika.connect_robust(
             os.getenv('rabbitmq_url')
@@ -77,7 +77,7 @@ async def response_in_queue_schedule(
             routing_key=reply_to
         )
 
-        logger.debug(f"Response sent to queue {reply_to}")
+        logger.success(f"Response successfully sent to queue {reply_to}")
 
     except Exception:
         logger.exception(f"ERROR send response schedule rabbit")

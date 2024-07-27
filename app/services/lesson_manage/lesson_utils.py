@@ -178,7 +178,6 @@ async def get_lessons(
                     sorted_schedule_keys = sorted_days[index:] + sorted_days[:index]
                 except Exception:
                     sorted_schedule_keys = sorted_days
-            
 
                 status_time = True
 
@@ -223,7 +222,7 @@ async def get_lessons(
 
                 final_schedule_str = json.dumps(schedule_info)
 
-                logger.info(f"lessons exists in database for group: {group}")
+                logger.success(f"get schedule successfully: {group}")
 
                 await rabbitmq.response_in_queue_schedule(final_schedule_str, reply_to)
 

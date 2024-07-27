@@ -38,7 +38,7 @@ async def set_schedule(group: str, schedule: str) -> bool:
         redis = Redis.from_url(os.getenv('redis_url'))
 
         # set schedule to redis with expire time 15 seconds (optional)
-        await redis.set(name=shedule_key, value=encoding_schedule, ex=15)
+        await redis.set(name=shedule_key, value=encoding_schedule, ex=40)
 
         await redis.close()
 

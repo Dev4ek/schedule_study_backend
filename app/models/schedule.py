@@ -31,15 +31,14 @@ class Lesson_in_db(BaseModel):
 class Lesson_in_schedule(BaseModel):
     day: Optional[str] = None
     date: Optional[str] = None
-    active: Optional[bool] = None
+    active: Optional[str] = None
     event_time: Optional[list[str]] = None
     time: Optional[str] = None
 
 
-class Form_schedule(BaseModel):
-    group: Optional[str] = None
-    week: Optional[str] = None
-    schedule: Optional[Lesson_in_schedule] = None
-
+class Schedule_output(BaseModel):
+    group: str = Field(..., description="Group number")
+    week: Annotated[int, Field(strict=True, ge=1, le=2, description="Num week of schedule")]
+    schedule: list[Lesson_in_schedule] = Field(..., description="List of lessons by days")
 
 

@@ -6,7 +6,7 @@ from . import config
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl=os.getenv('token'))
 
 def verify_version(
-        client_version: str = Header(...)
+        client_version: str = Header(..., description="Версия приложения у клиента", example="1.0.0")
         ):
     
     if client_version != config.version:

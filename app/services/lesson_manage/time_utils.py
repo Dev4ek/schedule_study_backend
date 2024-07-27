@@ -64,6 +64,7 @@ async def set_time(
                             )
                     )
 
+                logger.success(f"Set time successfully")
                 await session.execute(query)
                 return True
 
@@ -75,9 +76,8 @@ async def set_time(
 
 async def get_day_and_week_number():
     logger.debug("get_week_number")
-
+    
     try:
-      
         today = datetime.now(moscow_tz).date()
 
         num_day = calendar.weekday(today.year, today.month, today.day) + 1
@@ -95,7 +95,7 @@ async def get_day_and_week_number():
         else:
             week_number = 2
 
-
+        logger.success("successfully get day and week number")
         return num_day, week_number
 
 
@@ -107,69 +107,80 @@ async def get_day_and_week_number():
 
 
 async def get_date_by_day(num_day):
-    today = datetime.now(moscow_tz)
+    logger.debug(f"get_date_by_day")
 
-    current_weekday = today.weekday()
+    try:
+        today = datetime.now(moscow_tz)
 
-    # Вычисляем количество дней до следующего целевого дня недели
-    days_until_target = (num_day - 1 - current_weekday + 7) % 7
+        current_weekday = today.weekday()
 
-    next_date = today + timedelta(days=days_until_target)
-    
-    str_date = f"{next_date.day} {models.Num_month[next_date.month]}"
+        # Вычисляем количество дней до следующего целевого дня недели
+        days_until_target = (num_day - 1 - current_weekday + 7) % 7
 
-    return str_date
-    
+        next_date = today + timedelta(days=days_until_target)
+        
+        str_date = f"{next_date.day} {models.Num_month[next_date.month]}"
+
+        logger.success(f"getting date by day successfully")
+        return str_date
+    except Exception:
+        logger.exception(f"ERROR getting date by day")
+        return None
+
 async def correct_str_minites(minutes: int):
 
-    # minutes = 5
+    logger.debug(f"correct_str_minites")
 
-    minutes_last_symbol = str(minutes)[-1]
+    try:
+        minutes_last_symbol = str(minutes)[-1]
 
-    if minutes_last_symbol == "1":
-        return f"{minutes} минута"
-    elif minutes == 11 or minutes == 12 or minutes == 13 or minutes == 14:
-        return f"{minutes} минут"
+        if minutes_last_symbol == "1":
+            return f"{minutes} минута"
+        elif minutes == 11 or minutes == 12 or minutes == 13 or minutes == 14:
+            return f"{minutes} минут"
 
-    elif minutes_last_symbol == "2" or minutes_last_symbol == "3" or minutes_last_symbol == "4":
-        return f"{minutes} минуты"
-    else:
-        return f"{minutes} минут"
-
+        elif minutes_last_symbol == "2" or minutes_last_symbol == "3" or minutes_last_symbol == "4":
+            return f"{minutes} минуты"
+        else:
+            return f"{minutes} минут"
+    except Exception:
+        logger.exception(f"ERROR correcting minutes")
+        return None
 
 async def check_time_lessons(event_time: list):
-    today = datetime.now(moscow_tz)
+    try:
+        today = datetime.now(moscow_tz)
 
-    current_time = datetime.strptime(f"{today.hour}:{today.minute}", "%H:%M")
-    
+        current_time = datetime.strptime(f"{today.hour}:{today.minute}", "%H:%M")
 
-    for index, _event_time in enumerate(event_time):
-        start_time_str, end_time_str = _event_time.split(" - ")
+        for index, _event_time in enumerate(event_time):
+            start_time_str, end_time_str = _event_time.split(" - ")
 
-        start_time = datetime.strptime(start_time_str, "%H:%M")
-        end_time = datetime.strptime(end_time_str, "%H:%M")
+            start_time = datetime.strptime(start_time_str, "%H:%M")
+            end_time = datetime.strptime(end_time_str, "%H:%M")
 
-        if start_time <= current_time <= end_time:
-            left_minutes = int((end_time - current_time).total_seconds() / 60)
-            correct_str_min = await correct_str_minites(left_minutes)
+            if start_time <= current_time <= end_time:
+                left_minutes = int((end_time - current_time).total_seconds() / 60)
+                correct_str_min = await correct_str_minites(left_minutes)
 
-            if index == len(event_time) - 1:
-                return "active", f"До конца {correct_str_min}"
-            else:
-                return "active", f"До перерыва {correct_str_min}"
+                if index == len(event_time) - 1:
+                    return "active", f"До конца {correct_str_min}"
+                else:
+                    return "active", f"До перерыва {correct_str_min}"
 
-        elif current_time < start_time:
-            left_minutes = int((start_time - current_time).total_seconds() / 60)
-            correct_str_min = await correct_str_minites(left_minutes)
+            elif current_time < start_time:
+                left_minutes = int((start_time - current_time).total_seconds() / 60)
+                correct_str_min = await correct_str_minites(left_minutes)
 
-            if index == 0:
-                if left_minutes < 120:
-                    return "wait", f"До начала {correct_str_min}"
-                return None, ""
+                if index == 0:
+                    if left_minutes < 120:
+                        return "wait", f"До начала {correct_str_min}"
+                    return None, ""
 
-            else:
-                return "wait", f"До продолжения {correct_str_min}"
+                else:
+                    return "wait", f"До продолжения {correct_str_min}"
 
-    return None, ""
-        
-
+        return None, ""
+    except Exception:        
+        logger.exception("error check_time_lessons")
+        return None, ""

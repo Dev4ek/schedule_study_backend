@@ -16,7 +16,7 @@ router = APIRouter()
         path="/set/lesson",
         tags=["Расписание"],
         dependencies=[Depends(dependencies.oauth2_scheme)],
-        description="Установить в расписании пару",
+        description="Установить пару для группы",
 )
 async def set_lesson(
     lesson: models.Lesson_input = Body(..., description="Пара для группы в формате JSON"),
@@ -24,10 +24,7 @@ async def set_lesson(
 
     logger.info(f"set lesson for group: {lesson.group}")
 
-
-    setting = await lesson_manage.lesson_utils.set_lesson(
-                                                            lesson=lesson,
-                                                            )
+    setting = await lesson_manage.lesson_utils.set_lesson(lesson=lesson,)
 
     if setting:
         logger.info(f"schedule set for group: {lesson.group}")
@@ -40,19 +37,20 @@ async def set_lesson(
 
 
 @router.get(
-        path="/lessons", 
+        path="/schedule", 
         tags=["Расписание"],
         dependencies=[
             Depends(dependencies.oauth2_scheme),
             Depends(dependencies.verify_version)
             ],
-        description="Посмотреть всё расписание для группы"
+        description="Посмотреть все пары для группы",
+        response_model=models.Schedule_output,
 )
 async def get_lessons(
-    group: str = Query(..., description="Название группы, например, Исп-232")
+    group: str = Query(..., description="Группа", example="Исп-232")
     ) -> JSONResponse: 
 
-    logger.info(f"came request GET schedule: {group}")
+    logger.info(f"Сame request GET schedule: {group}")
 
     # get cache redis
     cache_schedule = await redis.check_schedule(group)
@@ -64,11 +62,7 @@ async def get_lessons(
         # str to json schedule
         schedule = json.loads(cache_schedule)
 
-        # processing time now in schedule
-        schedule_time = await lesson_manage.time_utils.timing_couples(schedule)
-
-
-        return JSONResponse(content=schedule_time, status_code=200)
+        return JSONResponse(content=schedule, status_code=200)
 
 
     # send request processing to rabbitmq
@@ -81,12 +75,14 @@ async def get_lessons(
         schedule = json.loads(schedule_str)
 
         # save schedule in cache redis
-        # await redis.set_schedule(group, schedule_time)
+        await redis.set_schedule(group, schedule_str)
 
         # return schedule
         return JSONResponse(content=schedule, status_code=200)
     
     else:
-        logger.critical(f"schedule not exists for group: {group}")
+        logger.critical(f"CRITICAL ENDPOINT get lessons : {group}")
         return JSONResponse(content={"message": "Неизвестная ошибка при получении расписания"}, status_code=500)
         
+
+
