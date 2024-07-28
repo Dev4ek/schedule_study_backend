@@ -3,7 +3,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Query, Body
 from fastapi.responses import JSONResponse
 from ..core import dependencies, config
-from ..services import redis, rabbitmq, lesson_manage
+from ..services import redis, rabbitmq, utils
 from .. import models
 from loguru import logger
 import asyncio
@@ -24,7 +24,7 @@ async def set_lesson(
 
     logger.info(f"set lesson for group: {lesson.group}")
 
-    setting = await lesson_manage.lesson_utils.set_lesson(lesson=lesson,)
+    setting = await utils.lesson_utils.set_lesson(lesson=lesson,)
 
     if setting:
         logger.info(f"schedule set for group: {lesson.group}")

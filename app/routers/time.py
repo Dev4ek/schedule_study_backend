@@ -3,10 +3,11 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Query, Body
 from fastapi.responses import JSONResponse
 from ..core import dependencies, config
-from ..services import redis, rabbitmq, lesson_manage
+from ..services import redis, rabbitmq, utils
 from loguru import logger
 import asyncio
 from .. import models
+from icecream import ic
 
 router = APIRouter()
 
@@ -24,7 +25,7 @@ async def set_time(
     
     num_day = models.Day_num[day]
 
-    setting = await lesson_manage.time_utils.set_time(num_day=num_day, num_lesson=num_lesson, time=time)
+    setting = await utils.time_utils.set_time(num_day=num_day, num_lesson=num_lesson, time=time)
 
     if setting:
         return JSONResponse(content={"message": "Время успешно установлено"}, status_code=200)
@@ -45,7 +46,7 @@ async def get_time(
         num_lesson: Optional[int | None] = Query(None, description="Номер пары, 0-4, где 0 это классный час", ge=0, le=4, example=2),
     ) -> JSONResponse: 
     
-    getting = await lesson_manage.time_utils.get_time(day=day, num_lesson=num_lesson)
+    getting = await utils.time_utils.get_time(day=day, num_lesson=num_lesson)
 
     if getting:
         return JSONResponse(content=getting, status_code=200)

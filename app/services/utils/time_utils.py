@@ -1,4 +1,5 @@
 from datetime import datetime, time, date, timedelta
+import json
 import pytz
 from loguru import logger
 
@@ -76,7 +77,7 @@ async def set_time(
 
 async def get_day_and_week_number():
     logger.debug("get_week_number")
-    
+
     try:
         today = datetime.now(moscow_tz).date()
 
@@ -106,7 +107,9 @@ async def get_day_and_week_number():
 
 
 
-async def get_date_by_day(num_day):
+async def get_date_by_day(
+        num_day
+):
     logger.debug(f"get_date_by_day")
 
     try:
@@ -127,7 +130,9 @@ async def get_date_by_day(num_day):
         logger.exception(f"ERROR getting date by day")
         return None
 
-async def correct_str_minites(minutes: int):
+async def correct_str_minites(
+        minutes: int
+):
 
     logger.debug(f"correct_str_minites")
 
@@ -147,7 +152,9 @@ async def correct_str_minites(minutes: int):
         logger.exception(f"ERROR correcting minutes")
         return None
 
-async def check_time_lessons(event_time: list):
+async def check_time_lessons(
+        event_time: list
+):
     try:
         today = datetime.now(moscow_tz)
 
@@ -184,3 +191,71 @@ async def check_time_lessons(event_time: list):
     except Exception:        
         logger.exception("error check_time_lessons")
         return None, ""
+
+
+async def get_time(
+        day,
+        num_lesson
+):
+    try:
+        if day:
+            num_day = models.Day_num[day]
+        else:
+            num_day = None
+
+                
+        async with await db.get_session() as session:
+            async with session.begin():
+                query = (
+                    db.select(db.table.Times.num_day, 
+                              db.table.Times.num_lesson, 
+                              db.table.Times.time)
+                    .order_by(
+                            db.table.Times.num_day.asc(),
+                            db.table.Times.num_lesson.asc()
+                    )
+                )
+
+                if num_day and num_lesson:
+                    query = query.where(db.and_(
+                            db.table.Times.num_lesson==num_lesson,
+                            db.table.Times.num_day==num_day
+                            )
+                        )  
+                elif num_day and not num_lesson:
+                    query = query.where(
+                            db.table.Times.num_day==num_day
+                        )  
+                elif not num_day and num_lesson:
+                    query = query.where(
+                            db.table.Times.num_lesson==num_lesson
+                        )   
+
+                result = await session.execute(query)
+                time = result.all()
+
+                time_keys = []
+
+                # create a dictionary for each day with time
+                day_dict = {}
+                for item in time:
+                    if item.num_day not in day_dict:
+                        day_dict[item.num_day] = []
+                    time_lesson_key = {
+                        "num_lesson": item.num_lesson,
+                        "event_time": item.time,
+                    }
+                    day_dict[item.num_day].append(time_lesson_key)
+
+                # convert dictionary to the desired list format
+                for num_day, lessons in day_dict.items():
+                    time_keys.append({
+                        "day": num_day,
+                        "time": lessons
+                    })
+
+                return time_keys
+    except Exception:
+        logger.exception(f"ERROR getting time for num_lesson : {num_lesson}, day: {day}")
+        return False
+
