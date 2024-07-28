@@ -4,7 +4,7 @@ import pytz
 from loguru import logger
 
 from app import models
-from .. import database as db
+from ..services import database as db
 from icecream import ic
 import calendar
 

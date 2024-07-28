@@ -9,6 +9,7 @@ from app.services import rabbitmq
 dotenv_path = find_dotenv()
 load_dotenv(dotenv_path)
 
+# config logs
 logger.add(f'logs/{datetime.datetime.now()}.log', rotation="3:00", level="DEBUG")
 
 if __name__ == "__main__":

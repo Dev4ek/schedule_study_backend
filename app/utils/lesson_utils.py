@@ -1,10 +1,10 @@
 import json
-from .. import database as db, rabbitmq
+from ..services import database as db, rabbitmq
 from loguru import logger
 from aio_pika.abc import AbstractIncomingMessage
 import asyncio
 from . import time_utils
-from ... import models
+from .. import models
 from icecream import ic
 import pydantic
 from app import models

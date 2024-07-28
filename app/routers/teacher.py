@@ -3,8 +3,8 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Query, Body
 from fastapi.responses import JSONResponse
 from ..core import dependencies, config
-from ..services import redis, rabbitmq, utils
-from .. import models
+from ..services import redis, rabbitmq
+from .. import models, utils
 from loguru import logger
 import asyncio
 

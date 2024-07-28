@@ -3,10 +3,10 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Query, Body
 from fastapi.responses import JSONResponse
 from ..core import dependencies, config
-from ..services import redis, rabbitmq, utils
+from ..services import redis, rabbitmq
 from loguru import logger
 import asyncio
-from .. import models
+from .. import models, utils
 from icecream import ic
 
 router = APIRouter()
