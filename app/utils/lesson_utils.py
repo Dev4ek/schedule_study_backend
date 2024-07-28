@@ -233,3 +233,4 @@ async def get_lessons(
     except Exception:
         logger.exception(f"ERROR getting schedule from database")
         return False
+
