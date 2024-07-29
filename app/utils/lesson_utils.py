@@ -11,9 +11,10 @@ from app import models
 
 
 
+
 async def set_lesson(
         lesson: models.Lesson_input, # lesson which need set
-) -> bool:
+):
     
     logger.debug("insert lesson for group: {group}")
 
@@ -36,6 +37,9 @@ async def set_lesson(
                             week=num_week,
                             )
                         )
+                    
+
+                    
 
                     # do qeury to database
                     result = await session.execute(query_check)
@@ -56,13 +60,12 @@ async def set_lesson(
                             .values(
                                 item=lesson.item,
                                 teacher=lesson.teacher,
-                                auditory=lesson.auditory,
+                                cabinet=lesson.cabinet,
                                 )
                         )
 
                     # if schedule not exists in database, insert new group with new schedule
                     else:
-
                         query = (
                             db.insert(db.table.Lessons)
 
@@ -72,7 +75,7 @@ async def set_lesson(
                                 item=lesson.item,
                                 num_lesson=lesson.num_lesson,
                                 teacher=lesson.teacher,
-                                auditory=lesson.auditory,
+                                cabinet=lesson.cabinet,
                                 week=num_week,
                                 )
                         )
@@ -106,9 +109,6 @@ async def get_lessons(
         # Open session to database
         async with await db.get_session() as session:
             async with session.begin():
-
-
-
                 num_day, num_week = await time_utils.get_day_and_week_number()
 
                 # Form query to get schedule from database
@@ -119,7 +119,7 @@ async def get_lessons(
                         db.table.Lessons.num_lesson, 
                         db.table.Lessons.week, 
                         db.table.Lessons.teacher, 
-                        db.table.Lessons.auditory, 
+                        db.table.Lessons.cabinet, 
                     )
                     .filter_by(group=group, week=num_week)
                     .order_by(db.table.Lessons.num_day.asc(), db.table.Lessons.num_lesson.asc())                 
@@ -133,7 +133,6 @@ async def get_lessons(
                     )
                     .order_by(db.table.Times.num_day.asc(), db.table.Times.num_lesson.asc())                 
                 )
-
 
                 # Execute query to database
                 result_lessons  = await session.execute(query_lessons)
@@ -157,7 +156,6 @@ async def get_lessons(
                     "week": num_week,
                     "schedule": final_schedule
                 }
-
 
                 # If schedule does not exist, return false
                 if not schedule_data:
@@ -202,9 +200,9 @@ async def get_lessons(
                             status, time = False, ""
 
 
-
                         lessons_in_schedule.append({
-                                        "item": lesson.item + f" ({lesson.auditory})",
+                                        "item": lesson.item,
+                                        "cabinet": lesson.cabinet,
                                         "teacher": lesson.teacher,
                                         "event_time": event_time,
                                         "status": status if status_time else None,

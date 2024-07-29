@@ -23,9 +23,9 @@ router = APIRouter()
         description="Посмотреть все пары для группы",
         response_model=models.Schedule_output,
 )
-async def get_lessons(
-    group: str = Query(..., description="Группа", example="Исп-232")
-    ) -> JSONResponse: 
+async def get_schedule(
+    group: str = Query(..., description="Группа", example="Исп-232"),
+) -> JSONResponse: 
 
     logger.info(f"Сame request GET schedule: {group}")
 

@@ -27,6 +27,7 @@ app.include_router(routers.lesson.router)
 app.include_router(routers.time.router)
 app.include_router(routers.group.router)
 app.include_router(routers.teacher.router)
+app.include_router(routers.cabinet.router)
 
 
 @app.middleware("http")

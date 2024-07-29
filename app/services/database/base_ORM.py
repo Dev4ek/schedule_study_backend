@@ -18,9 +18,8 @@ class Lessons(Base):
     
     week: Mapped[int] = mapped_column(SMALLINT())
     teacher: Mapped[String] = mapped_column(String(100), nullable=True)
-    auditory: Mapped[String] = mapped_column(String(50), nullable=True)
+    cabinet: Mapped[String] = mapped_column(String(50), nullable=True)
     
-
 
 class Times(Base):
     __tablename__ = 'time'
@@ -44,8 +43,8 @@ class Groups(Base):
     id: Mapped[Integer] = mapped_column(Integer, primary_key=True, autoincrement=True)
     group: Mapped[String] = mapped_column(String(30))
 
-class Auditories(Base):
-    __tablename__ = 'auditory'
+class Cabinets(Base):
+    __tablename__ = 'cabinet'
 
     id: Mapped[Integer] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    auditory: Mapped[String] = mapped_column(String(50))
+    cabinet: Mapped[String] = mapped_column(String(50))

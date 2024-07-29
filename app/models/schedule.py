@@ -11,7 +11,7 @@ class Lesson_input(BaseModel):
     item: str
     num_lesson: Annotated[int, Field(strict=True, ge=0, le=4, description="Номер пары")]
     teacher: str
-    auditory: str
+    cabinet: str
     week: Annotated[int, Field(strict=True, ge=0, le=2)]
 
 
@@ -25,7 +25,7 @@ class Lesson_in_db(BaseModel):
     event_time: list[str]
     week: Annotated[int, Field(strict=True, ge=1, le=2)]
     teacher: str
-    auditory: str
+    cabinet: str
 
 
 class Lesson_in_schedule(BaseModel):

@@ -38,7 +38,7 @@ async def get_teachers() -> JSONResponse:
         description="Добавить группу",
 )
 async def set_group(
-    group: str = Body(..., description="ФИО", example="Исп-232")
+    group: str = Query(..., description="Группа", example="Исп-232")
 ) -> JSONResponse:
     logger.info("came request add group {group}")
 
@@ -52,7 +52,6 @@ async def set_group(
     
 
 
-
 @router.delete(
         path="/remove/group",
         tags=["Группы"],
@@ -60,14 +59,14 @@ async def set_group(
         description="Удалить группу",
 )
 async def remove_group(
-    name: str = Query(..., description="Группа", example="Исп-232")
+    group: str = Query(..., description="Группа", example="Исп-232")
 ) -> JSONResponse:
     logger.info("came request remove group {group}")
 
-    removing = await utils.remove_group(name)
+    removing = await utils.remove_group(group)
 
     if removing == "not found":
-        return JSONResponse(content={"message": "Группа не найден"}, status_code=200)
+        return JSONResponse(content={"message": "Группа не найдена"}, status_code=200)
     elif removing:
         return JSONResponse(content={"message": "Группа успешно удалена"}, status_code=200)
     else:
