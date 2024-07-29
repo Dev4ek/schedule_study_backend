@@ -2,12 +2,13 @@ from dotenv import load_dotenv, find_dotenv
 import asyncio
 from loguru import logger
 import datetime
-from app.services import database
-from app.core import fastapi
-from app.services import rabbitmq
 
 dotenv_path = find_dotenv()
 load_dotenv(dotenv_path)
+
+from app.services import database
+from app.core import fastapi
+from app.services import rabbitmq
 
 # config logs
 logger.add(f'logs/{datetime.datetime.now()}.log', rotation="3:00", level="DEBUG")
