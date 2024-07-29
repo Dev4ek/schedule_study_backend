@@ -107,6 +107,8 @@ async def get_lessons(
         async with await db.get_session() as session:
             async with session.begin():
 
+
+
                 num_day, num_week = await time_utils.get_day_and_week_number()
 
                 # Form query to get schedule from database
@@ -234,3 +236,48 @@ async def get_lessons(
         logger.exception(f"ERROR getting schedule from database")
         return False
 
+
+async def remove_lesson(
+        group: str, # example "Исп-232"
+        day: str, # example "Понедельник"
+        num_lesson: int, # num lesson example 1 or 2 or 3...
+        num_week: int
+):
+
+    logger.debug(f"Removing lesson for group: {group} day: {day}, lesson_number: {num_lesson}")
+
+    num_day: int = models.Day_num[day]
+
+    try:
+
+        # Open session to database
+        async with await db.get_session() as session:
+            async with session.begin():
+
+                async def _removing_lessons(_num_week):
+                    # checking group existence in database
+                    query_check = (
+                            db.delete(db.table.Lessons)
+                            .filter_by(
+                                group=group, 
+                                num_day=num_day, 
+                                num_lesson=num_lesson,
+                                week=_num_week,
+                                )
+                            )
+
+                    # do qeury to database
+                    await session.execute(query_check)
+
+
+                if num_week == 0:
+                    for week in range(1, 3):
+                        await _removing_lessons(week)
+                else:
+                    await _removing_lessons(week)
+
+                return True
+
+    except Exception:
+        logger.exception(f"ERROR removing lesson from database")
+        return False

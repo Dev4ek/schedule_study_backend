@@ -1,17 +1,17 @@
 services:
-  api:
-    build: .
-    container_name: fastapi
-    env_file:
-      - .env
-    ports:
-      - "8082:8082"
-    depends_on:
-      - postgres
-      - rabbitmq
-      - redis
-    networks:
-      - general
+  # api:
+  #   build: .
+  #   container_name: fastapi
+  #   env_file:
+  #     - .env
+  #   ports:
+  #     - "8082:8082"
+  #   depends_on:
+  #     - postgres
+  #     - rabbitmq
+  #     - redis
+  #   networks:
+  #     - general
 
   postgres:
     image: postgres:16-alpine

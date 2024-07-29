@@ -12,29 +12,6 @@ import asyncio
 router = APIRouter()
 
 
-@router.post(
-        path="/set/lesson",
-        tags=["Расписание"],
-        dependencies=[Depends(dependencies.oauth2_scheme)],
-        description="Установить пару для группы",
-)
-async def set_lesson(
-    lesson: models.Lesson_input = Body(..., description="Пара для группы в формате JSON"),
-) -> JSONResponse: 
-
-    logger.info(f"set lesson for group: {lesson.group}")
-
-    setting = await utils.lesson_utils.set_lesson(lesson=lesson,)
-
-    if setting:
-        logger.info(f"schedule set for group: {lesson.group}")
-
-        return JSONResponse(content={'message': "Расписание для группы было установлено"}, status_code=200)
-    
-    else:
-        logger.critical(f"schedule not set for group: {lesson.group}")
-        return JSONResponse(content={"message": "Неизвестная ошибка при установке расписания"}, status_code=500)
-
 
 @router.get(
         path="/schedule", 
@@ -86,3 +63,54 @@ async def get_lessons(
         
 
 
+@router.put(
+        path="/set/lesson",
+        tags=["Расписание"],
+        dependencies=[Depends(dependencies.oauth2_scheme)],
+        description="Установить пару для группы",
+)
+async def set_lesson(
+    lesson: models.Lesson_input = Body(..., description="Пара для группы в формате JSON"),
+) -> JSONResponse: 
+
+    logger.info(f"set lesson for group: {lesson.group}")
+
+    setting = await utils.lesson_utils.set_lesson(lesson=lesson,)
+
+    if setting:
+        logger.info(f"schedule set for group: {lesson.group}")
+
+        return JSONResponse(content={'message': "Расписание для группы было установлено"}, status_code=200)
+    
+    else:
+        logger.critical(f"schedule not set for group: {lesson.group}")
+        return JSONResponse(content={"message": "Неизвестная ошибка при установке расписания"}, status_code=500)
+
+
+
+
+
+@router.delete(
+        path="/remove/lesson",
+        tags=["Расписание"],
+        dependencies=[Depends(dependencies.oauth2_scheme)],
+        description="Удалить пару",
+)
+async def remove_lesson(
+    group: str = Body(..., description="Группа"),
+    day: models.Days = Body(..., description="День недели", example="Понедельник"),
+    num_lesson: int = Body(..., description="Пара для группы в формате JSON", le=0, ge=0, example=2),
+    week: int = Body(..., description="Номер недели 0 - это 1 и 2 вместе")
+) -> JSONResponse: 
+
+    logger.info(f"remove lesson for group: {group} day: {day}, num_lesson: {num_lesson}, week: {week}")
+
+    removing = await utils.remove_lesson(group, day, num_lesson, week)
+
+
+    if removing:
+        return JSONResponse(content={'message': "Успешно удалено"}, status_code=200)
+    
+    else:
+        logger.critical(f"error removing lesson")
+        return JSONResponse(content={"message": "Неизвестная ошибка при удалении пары"}, status_code=500)

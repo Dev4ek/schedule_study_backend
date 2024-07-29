@@ -31,7 +31,7 @@ async def get_teachers() -> JSONResponse:
 
 
 
-@router.post(
+@router.put(
         path="/set/teacher",
         tags=["Учителя"],
         dependencies=[Depends(dependencies.oauth2_scheme)],
@@ -54,14 +54,14 @@ async def set_teacher(
 
 
 
-@router.post(
+@router.delete(
         path="/remove/teacher",
         tags=["Учителя"],
         dependencies=[Depends(dependencies.oauth2_scheme)],
         description="Удалить учителя",
 )
 async def remove_teacher(
-    full_name: str = Body(..., description="ФИО учителя", example="Демиденко Наталья Ильинична")
+    full_name: str = Query(..., description="ФИО учителя", example="Демиденко Наталья Ильинична")
 ) -> JSONResponse:
     logger.info("came request remove teacher")
 

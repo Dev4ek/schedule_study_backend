@@ -250,7 +250,8 @@ async def get_time(
                 # convert dictionary to the desired list format
                 for num_day, lessons in day_dict.items():
                     time_keys.append({
-                        "day": num_day,
+                        "day": models.Num_day[num_day],
+                        "num_day": num_day,
                         "time": lessons
                     })
 
@@ -259,3 +260,46 @@ async def get_time(
         logger.exception(f"ERROR getting time for num_lesson : {num_lesson}, day: {day}")
         return False
 
+
+
+async def remove_time(
+        num_day: int, # Понедельник - 1 , Вторник - 2
+        num_lesson: int, # number lesson example 1 or 2 or 3...
+):
+    
+    logger.debug(f"Removing time , day: {num_day}, num_lesson: {num_lesson}")
+
+    try:
+        async with await db.get_session() as session:
+            async with session.begin():
+                check_time = (
+                    db.select(db.table.Times.time)
+                    .filter_by(
+                        num_lesson=num_lesson,
+                        num_day=num_day
+                        )
+                    )
+                result = await session.execute(check_time)
+
+                check = result.scalar_one_or_none()
+
+                if check:
+                    query = (
+                        db.delete(db.table.Times)
+                       .where(db.and_(
+                                db.table.Times.num_lesson==num_lesson,
+                                db.table.Times.num_day==num_day
+                                )
+                            )
+                    )
+
+                    await session.execute(query)
+                    return True
+
+
+                else:
+                    return "not found"
+
+    except Exception:
+        logger.exception(f"ERROR getting time for num_lesson : {num_lesson}, day: {num_day}")
+        return False
