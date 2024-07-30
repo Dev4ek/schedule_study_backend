@@ -14,16 +14,16 @@ router = APIRouter()
 
 
 @router.get(
-        path="/schedule", 
+        path="/app/lessons", 
         tags=["Расписание"],
         dependencies=[
             Depends(dependencies.oauth2_scheme),
             Depends(dependencies.verify_version)
             ],
-        description="Посмотреть все пары для группы",
+        description="Посмотреть все пары для группы (ДЛЯ ПРИЛОЖЕНИЯ)",
         response_model=models.Schedule_output,
 )
-async def get_schedule(
+async def get_lessons(
     group: str = Query(..., description="Группа", example="Исп-232"),
 ) -> JSONResponse: 
 
@@ -64,13 +64,23 @@ async def get_schedule(
 
 
 @router.put(
-        path="/set/lesson",
+        path="/put/lesson",
         tags=["Расписание"],
         dependencies=[Depends(dependencies.oauth2_scheme)],
         description="Установить пару для группы",
 )
 async def set_lesson(
-    lesson: models.Lesson_input = Body(..., description="Пара для группы в формате JSON"),
+    lesson: models.Lesson_input = Body(..., description="Пара для группы в формате JSON",
+    example={
+        "group": "Исп-232",
+        "day": "Понедельник",
+        "item": "Классный час",
+        "num_lesson": 2,
+        "teacher": "Демиденко Наталья Ильинична",
+        "cabinet": "405-1",
+        "week": 0
+    }
+),
 ) -> JSONResponse: 
 
     logger.info(f"set lesson for group: {lesson.group}")
@@ -97,16 +107,18 @@ async def set_lesson(
         description="Удалить пару",
 )
 async def remove_lesson(
-    group: str = Body(..., description="Группа"),
-    day: models.Days = Body(..., description="День недели", example="Понедельник"),
-    num_lesson: int = Body(..., description="Пара для группы в формате JSON", le=0, ge=0, example=2),
-    week: int = Body(..., description="Номер недели 0 - это 1 и 2 вместе")
+    lesson: models.Remove_lesson = Body(..., description="Параметры для пары",
+    example={
+        "group": "Исп-232",
+        "day": "Понедельник",
+        "num_lesson": 0,
+        "week": 0
+    })
 ) -> JSONResponse: 
 
-    logger.info(f"remove lesson for group: {group} day: {day}, num_lesson: {num_lesson}, week: {week}")
+    logger.info(f"remove lesson for group: {lesson.group} day: {lesson.day}, num_lesson: {lesson.num_lesson}, week: {lesson.week}")
 
-    removing = await utils.remove_lesson(group, day, num_lesson, week)
-
+    removing = await utils.remove_lesson(lesson.group, lesson.day, lesson.num_lesson, lesson.week)
 
     if removing:
         return JSONResponse(content={'message': "Успешно удалено"}, status_code=200)

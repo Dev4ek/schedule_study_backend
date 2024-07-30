@@ -32,17 +32,19 @@ async def get_teachers() -> JSONResponse:
 
 
 @router.put(
-        path="/set/teacher",
+        path="/put/teacher",
         tags=["Учителя"],
         dependencies=[Depends(dependencies.oauth2_scheme)],
         description="Добавить учителя",
 )
-async def set_teacher(
-    full_name: str = Body(..., description="ФИО", example="Демиденко Наталья Ильинична")
+async def put_teacher(
+    full_name: models.Teacher_input = Body(..., description="ФИО учителя", example={
+        "full_name": "Демиденко Наталья Ильинична"
+    })
 ) -> JSONResponse:
-    logger.info("came request add teacher")
+    logger.info(f"came request put teacher {full_name.full_name}")
 
-    adding = await utils.set_teacher(full_name)
+    adding = await utils.put_teacher(full_name.full_name)
 
     if adding:
         return JSONResponse(content={"message": "Учитель успешно добавлен"}, status_code=200)
@@ -61,11 +63,13 @@ async def set_teacher(
         description="Удалить учителя",
 )
 async def remove_teacher(
-    full_name: str = Query(..., description="ФИО учителя", example="Демиденко Наталья Ильинична")
+     full_name: models.Teacher_input = Body(..., description="ФИО учителя", example={
+        "full_name": "Демиденко Наталья Ильинична"
+    })
 ) -> JSONResponse:
-    logger.info("came request remove teacher")
+    logger.info(f"came request remove teacher {full_name.full_name}")
 
-    removing = await utils.remove_teacher(full_name)
+    removing = await utils.remove_teacher(full_name.full_name)
 
     if removing == "not found":
         return JSONResponse(content={"message": "Учитель с таким ФИО не найден"}, status_code=200)

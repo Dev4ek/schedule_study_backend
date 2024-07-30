@@ -42,3 +42,8 @@ class Schedule_output(BaseModel):
     schedule: list[Lesson_in_schedule] = Field(..., description="List of lessons by days")
 
 
+class Remove_lesson(BaseModel):
+    group: str = Field(..., description="Группа"),
+    day: Days = Field(..., description="День недели"),
+    num_lesson: int = Field(..., description="Номер пары, где 0 - это классный час", ge=0, le=4),
+    week: int = Field(..., description="Номер недели 0 - это 1 и 2 вместе", ge=0, le=2)

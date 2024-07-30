@@ -21,6 +21,7 @@ async def all_cabinets():
                 # Form query to get all teachers from database
                 query = (
                     db.select(db.table.Cabinets.cabinet)
+                    .order_by(db.table.Cabinets.cabinet.asc())
                 )
                 # Execute query to database
                 result = await session.execute(query)
@@ -38,7 +39,7 @@ async def all_cabinets():
     
 
 
-async def set_cabinet(
+async def put_cabinet(
         cabinet: str, # example: "5а-2"
 ):
     logger.debug("start adding cabinet to database")

@@ -36,15 +36,13 @@ async def all_groups():
     except Exception:
         logger.exception(f"ERROR getting all groups from database")
         return False
-    
 
 
-async def set_group(
+async def put_group(
         group: str, # example: "Исп-232"
 ):
-    logger.debug("start adding group")
+    logger.debug("start put group")
 
-    
     try:
         # Open session to database
         async with await db.get_session() as session:

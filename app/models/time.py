@@ -1,5 +1,5 @@
 from enum import Enum
-
+from pydantic import BaseModel, Field
 
 Day_num = {
     "Понедельник": 1,
@@ -48,3 +48,7 @@ class Days(str, Enum):
     Воскресенье = "Воскресенье"
 
 
+class Put_time(BaseModel):
+    day: Days = Field(..., description="День недели", example="Понедельник"),
+    num_lesson: int = Field(..., description="Номер пары, 0-4, где 0 это классный час", ge=0, le=4, example=2),
+    time: str = Field(..., description="Время для пары", example="8:30 - 9:15, 9:15 - 10:00")

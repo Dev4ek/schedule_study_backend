@@ -40,7 +40,7 @@ async def all_teachers():
     
 
 
-async def set_teacher(
+async def put_teacher(
         full_name: str, # example: "Демиденко Наталья Ильинична"
 ):
     logger.debug("start adding teacher")

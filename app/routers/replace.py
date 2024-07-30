@@ -11,7 +11,7 @@ import asyncio
 router = APIRouter()
 
 @router.get(
-        path="/groups",
+        path="/replacements",
         tags=["Группы"],
         dependencies=[Depends(dependencies.oauth2_scheme)],
         description="Список всех групп",

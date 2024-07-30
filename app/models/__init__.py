@@ -1,2 +1,5 @@
-from .schedule import Lesson_input, Days, Lesson_in_db, Schedule_output
-from .time import Day_num, Num_day, Num_month
+from .schedule import Lesson_input, Days, Lesson_in_db, Schedule_output, Remove_lesson
+from .time import Day_num, Num_day, Num_month, Put_time
+from .cabinet import Cabinet_input
+from .group import Group_input
+from .teacher import Teacher_input

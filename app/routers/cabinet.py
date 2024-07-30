@@ -1,6 +1,6 @@
 import json
 from typing import Optional
-from fastapi import APIRouter, Depends, Query, Body
+from fastapi import APIRouter, Depends, Query, Body, Header, Path
 from fastapi.responses import JSONResponse
 from ..core import dependencies, config
 from ..services import redis, rabbitmq
@@ -18,7 +18,7 @@ router = APIRouter()
         description="Список всех кабинетов",
 )
 async def get_cabients() -> JSONResponse:
-    logger.info("came request list all cabinets")
+    logger.info(f"came request list all cabinets")
 
     getting = await utils.all_cabinets()
 
@@ -29,20 +29,18 @@ async def get_cabients() -> JSONResponse:
         return JSONResponse(content={"message": "Неизвестная ошибка при получении списка кабинетов"}, status_code=500)
     
 
-
-
 @router.put(
-        path="/set/cabinet",
+        path="/put/cabinet",
         tags=["Кабинеты"],
         dependencies=[Depends(dependencies.oauth2_scheme)],
         description="Добавить кабинет",
 )
-async def set_cabinet(
-    cabinet: str = Query(..., description="Кабинет", example="405-1")
+async def put_cabinet(
+    cabinet: models.Cabinet_input
 ) -> JSONResponse:
-    logger.info("came request add cabinet {cabinet}")
+    logger.info(f"came request put cabinet {cabinet.cabinet}")
 
-    adding = await utils.set_cabinet(cabinet)
+    adding = await utils.put_cabinet(cabinet.cabinet)
 
     if adding:
         return JSONResponse(content={"message": "Кабинет успешно добавлен"}, status_code=200)
@@ -60,11 +58,11 @@ async def set_cabinet(
         description="Удалить кабинет",
 )
 async def remove_cabinet(
-    cabinet: str = Query(..., description="Кабинет", example="5а-2")
+    cabinet: models.Cabinet_input
 ) -> JSONResponse:
-    logger.info("came request remove cabinet {group}")
+    logger.info(f"came request remove cabinet {cabinet.cabinet}")
 
-    removing = await utils.remove_cabinet(cabinet)
+    removing = await utils.remove_cabinet(cabinet.cabinet)
 
     if removing == "not found":
         return JSONResponse(content={"message": "Кабинет не найден"}, status_code=200)
