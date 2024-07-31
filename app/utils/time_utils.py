@@ -152,13 +152,21 @@ async def correct_str_minites(
         logger.exception(f"ERROR correcting minutes")
         return None
 
-async def check_time_lessons(
-        event_time: list
-):
+async def check_time_lessons(event_time: list, previous_event_time: list):
+    async def check_percentage(total_seconds, elapsed_seconds):
+        left_percentage = (elapsed_seconds / total_seconds) * 100
+        return min(100, max(0, int(left_percentage)))
+
     try:
         today = datetime.now(moscow_tz)
-
         current_time = datetime.strptime(f"{today.hour}:{today.minute}", "%H:%M")
+
+        if not previous_event_time:
+            start_time_str_previous = event_time[0].split(" - ")[0]
+            start_time_str_previous_time = datetime.strptime(start_time_str_previous, "%H:%M")
+
+            previous_event_time = [f"00:00 - {start_time_str_previous_time.hour - 1}:30"]
+
 
         for index, _event_time in enumerate(event_time):
             start_time_str, end_time_str = _event_time.split(" - ")
@@ -168,30 +176,42 @@ async def check_time_lessons(
 
             if start_time <= current_time <= end_time:
                 left_minutes = int((end_time - current_time).total_seconds() / 60)
+                total_seconds = (end_time - start_time).total_seconds()
+                elapsed_seconds = (current_time - start_time).total_seconds()
+                percentage = await check_percentage(total_seconds, elapsed_seconds)
                 correct_str_min = await correct_str_minites(left_minutes)
 
                 if index == len(event_time) - 1:
-                    return "active", f"До конца {correct_str_min}"
+                    return "active", f"До конца {correct_str_min}", percentage
                 else:
-                    return "active", f"До перерыва {correct_str_min}"
-
+                    return "active", f"До перерыва {correct_str_min}", percentage
             elif current_time < start_time:
                 left_minutes = int((start_time - current_time).total_seconds() / 60)
                 correct_str_min = await correct_str_minites(left_minutes)
+                
+                if index == 0:
+                    end_previous_lesson = previous_event_time[-1].split(" - ")[1]
+                    end_previous_time = datetime.strptime(end_previous_lesson, "%H:%M")
+
+                elif index == 1:
+                    end_previous_lesson = event_time[0].split(" - ")[1]
+                    end_previous_time = datetime.strptime(end_previous_lesson, "%H:%M")
+
+                total_seconds = (start_time - end_previous_time).total_seconds()
+                elapsed_seconds = (current_time - end_previous_time).total_seconds()
+                percentage = await check_percentage(total_seconds, elapsed_seconds)
 
                 if index == 0:
-                    if left_minutes < 120:
-                        return "wait", f"До начала {correct_str_min}"
-                    return None, ""
-
+                    if left_minutes <= 60:
+                        return "wait", f"До начала {correct_str_min}", percentage
+                    return None, "", 0
                 else:
-                    return "wait", f"До продолжения {correct_str_min}"
+                    return "wait", f"До продолжения {correct_str_min}", percentage
 
-        return None, ""
+        return None, "", 0
     except Exception:        
         logger.exception("error check_time_lessons")
-        return None, ""
-
+        return None, "", 0
 
 async def get_time(
         day,

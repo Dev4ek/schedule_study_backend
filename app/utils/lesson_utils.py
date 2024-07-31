@@ -190,15 +190,19 @@ async def get_lessons(
                         try:
                             event_time = time_key[(lesson.num_day, lesson.num_lesson)]
 
-                            if lesson.num_day is num_day:
-                                status, time = await time_utils.check_time_lessons(event_time)
+                            if (lesson.num_day, lesson.num_lesson - 1) in time_key.keys():
+                                previous_event_time = time_key[(lesson.num_day, lesson.num_lesson - 1)]
                             else:
-                                status, time = False, ""
+                                previous_event_time = None
+
+                            if lesson.num_day is num_day:
+                                status, time, percentage = await time_utils.check_time_lessons(event_time, previous_event_time)
+                            else:
+                                status, time, percentage = False, "", 0
 
                         except KeyError:
                             event_time = [""]
-                            status, time = False, ""
-
+                            status, time, percentage = False, "", 0
 
                         lessons_in_schedule.append({
                                         "item": lesson.item,
@@ -206,7 +210,8 @@ async def get_lessons(
                                         "teacher": lesson.teacher,
                                         "event_time": event_time,
                                         "status": status if status_time else None,
-                                        "time": time
+                                        "time": time,
+                                        "percentage": percentage
                                     })
                         if status:
                             status_time = False
