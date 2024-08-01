@@ -1,1 +1,1 @@
-from . import time, lesson, teacher, group, cabinet
+from . import time, lesson, teacher, group, cabinet, replace

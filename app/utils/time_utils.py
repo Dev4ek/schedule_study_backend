@@ -139,11 +139,11 @@ async def correct_str_minites(
     try:
         minutes_last_symbol = str(minutes)[-1]
 
-        if minutes_last_symbol == "1":
-            return f"{minutes} минута"
-        elif minutes == 11 or minutes == 12 or minutes == 13 or minutes == 14:
-            return f"{minutes} минут"
 
+        if minutes == 11 or minutes == 12 or minutes == 13 or minutes == 14:
+            return f"{minutes} минут"
+        elif minutes_last_symbol == "1":
+            return f"{minutes} минута"
         elif minutes_last_symbol == "2" or minutes_last_symbol == "3" or minutes_last_symbol == "4":
             return f"{minutes} минуты"
         else:
@@ -176,10 +176,11 @@ async def check_time_lessons(event_time: list, previous_event_time: list):
 
             if start_time <= current_time <= end_time:
                 left_minutes = int((end_time - current_time).total_seconds() / 60)
+                correct_str_min = await correct_str_minites(left_minutes)
+
                 total_seconds = (end_time - start_time).total_seconds()
                 elapsed_seconds = (current_time - start_time).total_seconds()
                 percentage = await check_percentage(total_seconds, elapsed_seconds)
-                correct_str_min = await correct_str_minites(left_minutes)
 
                 if index == len(event_time) - 1:
                     return "active", f"До конца {correct_str_min}", percentage

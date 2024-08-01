@@ -12,7 +12,6 @@ import asyncio
 router = APIRouter()
 
 
-
 @router.get(
         path="/app/lessons", 
         tags=["Расписание"],

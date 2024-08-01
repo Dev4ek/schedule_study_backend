@@ -134,12 +134,44 @@ async def get_lessons(
                     .order_by(db.table.Times.num_day.asc(), db.table.Times.num_lesson.asc())                 
                 )
 
+                query_replacements = (
+                
+                        db.select(db.table.Replacements)
+                        .filter_by(
+                            group=group,
+                        )
+                )
+                # Execute query to database
+
                 # Execute query to database
                 result_lessons  = await session.execute(query_lessons)
                 result_time  = await session.execute(query_time)
+                result_replaceements = await session.execute(query_replacements)
 
                 # Getting result
                 schedule_data: list[models.Lesson_in_db] = result_lessons.all()
+
+
+                # If schedule does not exist, return false
+                if not schedule_data:
+                    logger.info(f"schedule not in database for group: {group}")
+
+                    await rabbitmq.response_in_queue_schedule(json.dumps(schedule_info), reply_to)
+                    return False
+
+
+                replacemets_data = result_replaceements.scalars().all()
+
+
+                replacemets_key = {}
+                for i in replacemets_data:
+                    replacemets_key[(i.num_day, i.num_lesson)] = {
+                        "item": i.item,
+                        "teacher": i.teacher,
+                        "cabinet": i.cabinet,
+                    }
+                ic(replacemets_key)
+
 
                 # Getting result
                 time_data = result_time.all()
@@ -156,13 +188,6 @@ async def get_lessons(
                     "week": num_week,
                     "schedule": final_schedule
                 }
-
-                # If schedule does not exist, return false
-                if not schedule_data:
-                    logger.info(f"schedule not in database for group: {group}")
-
-                    await rabbitmq.response_in_queue_schedule(json.dumps(schedule_info), reply_to)
-                    return False
 
                 # Group lessons by days
                 grouped_schedule = {}
@@ -211,7 +236,8 @@ async def get_lessons(
                                         "event_time": event_time,
                                         "status": status if status_time else None,
                                         "time": time,
-                                        "percentage": percentage
+                                        "percentage": percentage,
+                                        "replace":  replacemets_key.get((lesson.num_day, lesson.num_lesson), None)
                                     })
                         if status:
                             status_time = False
