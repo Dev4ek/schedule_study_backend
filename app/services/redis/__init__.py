@@ -1,1 +1,1 @@
-from .cache import check_schedule, set_schedule
+from .cache import check_lessons, set_lesssons

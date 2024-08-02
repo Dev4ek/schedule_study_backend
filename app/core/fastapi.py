@@ -5,13 +5,20 @@ from fastapi.responses import JSONResponse
 from app import routers
 from . import config
 from loguru import logger
+from fastapi_cache import FastAPICache
+from fastapi_cache.backends.redis import RedisBackend
+from fastapi_cache.decorator import cache
+from contextlib import asynccontextmanager
+from collections.abc import AsyncIterator
+from redis import asyncio as aioredis
+import os
 
 
 app = FastAPI(
     title=config.APPname,
     version=config.version,
     docs_url='/docs', 
-    openapi_url='/openapi.json'
+    openapi_url='/openapi.json',
 )
 
 app.add_middleware(
@@ -23,11 +30,11 @@ app.add_middleware(
 )
 
 
-app.include_router(routers.lesson.router)
+app.include_router(routers.lesson.router_lesson)
 app.include_router(routers.time.router)
-app.include_router(routers.group.router)
+app.include_router(routers.group.router_group)
 app.include_router(routers.teacher.router)
-app.include_router(routers.cabinet.router)
+app.include_router(routers.cabinet.router_cabinet)
 app.include_router(routers.replace.router)
 
 
@@ -42,7 +49,6 @@ async def maintenance_mode_middleware(request, call_next):
     return response
 
 
-
 async def start():
     import os   
     os.environ['PYTHONDONTWRITEBYTECODE'] = '1'
@@ -55,9 +61,6 @@ async def start():
                 full_path = os.path.join(root, d)
                 os.system(f'rm -rf {full_path}')
                 
-
-    # asyncio.run(core.drop_tables())
-    # asyncio.run(core.create_tables())
 
     # Instrumentator().instrument(app).expose(app) # prometheus metrics
 

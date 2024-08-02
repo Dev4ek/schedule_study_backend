@@ -1,121 +1,111 @@
 import json
-from ..services import database as db, rabbitmq
+from ..services import database as db
+from app.core.dependencies import SessionDep
 from loguru import logger
-from aio_pika.abc import AbstractIncomingMessage
 import asyncio
 from . import time_utils
-from .. import models
 from icecream import ic
 import pydantic
-from app import models
+from app import schemas
 
-
-async def all_cabinets():
-    logger.debug("getting all cabients")
-
+async def all_cabinets(session: SessionDep) -> dict | bool:
     try:
-        # Open session to database
-        async with await db.get_session() as session:
-            async with session.begin():
+        logger.debug("Формирование запроса для бд")
+        query = (
+            db.select(db.table.Cabinets.cabinet)
+            .order_by(db.table.Cabinets.cabinet.asc())
+        )
 
-                # Form query to get all teachers from database
-                query = (
-                    db.select(db.table.Cabinets.cabinet)
-                    .order_by(db.table.Cabinets.cabinet.asc())
-                )
-                # Execute query to database
-                result = await session.execute(query)
+        logger.debug("Выполняем запрос в бд")
+        result = await session.execute(query)
 
-                # Getting result
-                cabients = result.scalars().all()
-
-                return {
-                    "cabients": cabients
-                }
+        logger.debug("Получаем результат из бд")
+        cabients = result.scalars().all()
+        
+        logger.debug("Формируем json список кабинетов для ответа")
+        return {
+            "cabients": cabients
+        }
 
     except Exception:
-        logger.exception(f"ERROR getting all cabinets from database")
+        logger.exception(f"Произошла ошибка при получении списка кабинето")
         return False
     
 
 
 async def put_cabinet(
-        cabinet: str, # example: "5а-2"
-):
-    logger.debug("start adding cabinet to database")
-
-    
+        cabinet: str, # example: "405-1"
+        session: SessionDep # Сессия базы данных
+) -> bool | str:
     try:
-        # Open session to database
-        async with await db.get_session() as session:
-            async with session.begin():
+        logger.debug("Формируем запрос для проверки кабинета в бд")
+        query_check = (
+            db.select(db.table.Cabinets.cabinet)
+            .where(db.table.Cabinets.cabinet == cabinet)
+        )
 
-                #checking cabinet in db
-                query_check = (
-                    db.select(db.table.Cabinets.cabinet)
-                   .where(db.table.Cabinets.cabinet == cabinet)
-                )
+        logger.debug("Выполняем запрос в бд")
+        result = await session.execute(query_check)
 
-                result = await session.execute(query_check)
+        logger.debug("Получаем данные")
+        exists_cabinet = result.scalar_one_or_none()
 
-                exists_cabinet = result.scalar_one_or_none()
 
-                if exists_cabinet:
-                    query = (
-                        db.update(
-                            db.table.Cabinets
-                        )
-                        .values(
-                            cabinet = cabinet, 
-                        )
-                    )
+        if exists_cabinet:
+            logger.debug("Кабинет уже существует, ничего не делаем и отдаем ответ exists")
+            return "exists"
 
-                else:
-                    query = (
-                        db.insert(db.table.Cabinets)
-                        .values(cabinet=cabinet)
-                    )
-                await session.execute(query)
-                return True
+        else:
+            logger.debug("Кабинет в бд не найден. Формируем запрос на добавлении кабинета в бд")
+            query = (
+                db.insert(db.table.Cabinets)
+                .values(cabinet=cabinet)
+            )
+
+        logger.debug("Выполняем запрос в бд")
+        await session.execute(query)
+        await session.commit()
+
+        logger.debug("Кабинет успешно добавлен в бд")
+        return True
 
     except Exception:
-        logger.exception(f"ERROR adding cabinet to database")
+        logger.exception(f"При добавлении кабинета в бд произошла ошибка")
         return False
     
 async def remove_cabinet(
-        cabinet: str # example: "5а-2"
-):
-    
-    logger.debug("start removing cabinet")
-
+        cabinet: str, # example: "405-1"б
+        session: SessionDep # Сессия базы данных
+) -> bool | str:
     try:
-        # Open session to database
-        async with await db.get_session() as session:
-            async with session.begin():
-                
-                # checking cabinet in db
+        logger.debug("Формируем запрос для проверки кабинета в бд")
+        query_check = (
+            db.select(db.table.Cabinets.cabinet)
+            .where(db.table.Cabinets.cabinet == cabinet)
+        )
 
-                query_check = (
-                    db.select(db.table.Cabinets.cabinet)
-                   .where(db.table.Cabinets.cabinet == cabinet)
-                )
+        logger.debug("Выполняем запрос в бд")
+        result = await session.execute(query_check)
 
-                result = await session.execute(query_check)
+        logger.debug("Получаем результат scalar_one_or_none")
+        exists_cabinet = result.scalar_one_or_none()
 
-                exists_cabinet = result.scalar_one_or_none()
+        if exists_cabinet:
+            logger.debug("Кабинет существует. Формируем запрос для его удаления")
+            query = (
+                db.delete(db.table.Cabinets)
+                .where(db.table.Cabinets.cabinet == cabinet)
+            )
+            logger.debug("Выполняем запрос в бд")
+            await session.execute(query)
+            await session.commit()
+            
+            logger.debug("Кабинет успешно удалён из бд")
+            return True
+        else:
+            logger.debug(f"Кабинет не найден в бд, возвращаем not found")
+            return "not found"
 
-                if exists_cabinet:
-                    query = (
-                        db.delete(db.table.Cabinets)
-                       .where(db.table.Cabinets.cabinet == cabinet)
-                    )
-
-                    await session.execute(query)
-                    return True
-                else:
-                    logger.debug(f"Cabinet {cabinet} not found in database")
-                    return "not found"
-    
     except Exception:
-        logger.exception(f"ERROR remove cabinet from database")
+        logger.exception(f"Произошла ошибка при удалении кабинета из базы данных")
         return False

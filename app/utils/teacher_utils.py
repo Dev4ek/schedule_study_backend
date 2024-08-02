@@ -1,13 +1,13 @@
 import json
-from ..services import database as db, rabbitmq
+from ..services import database as db
 from loguru import logger
 from aio_pika.abc import AbstractIncomingMessage
 import asyncio
 from . import time_utils
-from .. import models
+from .. import schemas
 from icecream import ic
 import pydantic
-from app import models
+from app import schemas
 
 
 async def all_teachers():

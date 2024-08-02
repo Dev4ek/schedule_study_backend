@@ -3,7 +3,7 @@ import json
 import pytz
 from loguru import logger
 
-from app import models
+from app import schemas
 from ..services import database as db
 from icecream import ic
 import calendar
@@ -76,19 +76,22 @@ async def set_time(
     
 
 async def get_day_and_week_number():
-    logger.debug("get_week_number")
-
     try:
+        
+        logger.debug("Получаем today: datetime now дату и время")
         today = datetime.now(moscow_tz).date()
 
+        logger.debug("Получаем num day сегодня. Понедельник - 1, Вторник - 2")
         num_day = calendar.weekday(today.year, today.month, today.day) + 1
 
+
+        logger.debug("Получаем первый день месяца")
         first_day = date(today.year, today.month, 1)
 
-        # Вычисляем количество дней между первым днем месяца и заданной датой
+        logger.debug("Вычисляем количество дней между первым днем месяца и заданной датой")
         days_since_start = (today - first_day).days
 
-        # Делим количество дней на 7 и округляем вверх, чтобы получить номер недели
+        logger.debug("Делим количество дней на 7 и округляем вверх, чтобы получить номер недели")
         week_number = (days_since_start // 7) + 1
 
         if week_number == 3 or week_number == 1:
@@ -96,12 +99,11 @@ async def get_day_and_week_number():
         else:
             week_number = 2
 
-        logger.success("successfully get day and week number")
+        logger.debug("Успешно получили сегодняшний день и номер недели")
         return num_day, week_number
 
-
     except Exception:
-        logger.exception(f"ERROR getting week number")
+        logger.exception(f"При получении сегодняшнего дня и номера недели произошла ошибка. Возвращаем None")
         return None
     
 
@@ -122,7 +124,7 @@ async def get_date_by_day(
 
         next_date = today + timedelta(days=days_until_target)
         
-        str_date = f"{next_date.day} {models.Num_month[next_date.month]}"
+        str_date = f"{next_date.day} {schemas.Num_month[next_date.month]}"
 
         logger.success(f"getting date by day successfully")
         return str_date
@@ -220,7 +222,7 @@ async def get_time(
 ):
     try:
         if day:
-            num_day = models.Day_num[day]
+            num_day = schemas.Day_num[day]
         else:
             num_day = None
 
@@ -271,7 +273,7 @@ async def get_time(
                 # convert dictionary to the desired list format
                 for num_day, lessons in day_dict.items():
                     time_keys.append({
-                        "day": models.Num_day[num_day],
+                        "day": schemas.Num_day[num_day],
                         "num_day": num_day,
                         "time": lessons
                     })

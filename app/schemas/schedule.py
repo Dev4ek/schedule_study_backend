@@ -34,6 +34,7 @@ class Lesson_in_schedule(BaseModel):
     active: Optional[str] = None
     event_time: Optional[list[str]] = None
     time: Optional[str] = None
+    percentage: Optional[int] = None
 
 
 class Schedule_output(BaseModel):

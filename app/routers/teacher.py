@@ -3,8 +3,8 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Query, Body
 from fastapi.responses import JSONResponse
 from ..core import dependencies, config
-from ..services import redis, rabbitmq
-from .. import models, utils
+from ..services import redis
+from .. import schemas, utils
 from loguru import logger
 import asyncio
 
@@ -14,7 +14,6 @@ router = APIRouter()
 @router.get(
         path="/teachers",
         tags=["Учителя"],
-        dependencies=[Depends(dependencies.oauth2_scheme)],
         description="Список всех учителей",
 )
 async def get_teachers() -> JSONResponse:
@@ -34,11 +33,10 @@ async def get_teachers() -> JSONResponse:
 @router.put(
         path="/put/teacher",
         tags=["Учителя"],
-        dependencies=[Depends(dependencies.oauth2_scheme)],
         description="Добавить учителя",
 )
 async def put_teacher(
-    full_name: models.Teacher_input = Body(..., description="ФИО учителя", example={
+    full_name: schemas.Teacher_input = Body(..., description="ФИО учителя", example={
         "full_name": "Демиденко Наталья Ильинична"
     })
 ) -> JSONResponse:
@@ -59,11 +57,10 @@ async def put_teacher(
 @router.delete(
         path="/remove/teacher",
         tags=["Учителя"],
-        dependencies=[Depends(dependencies.oauth2_scheme)],
         description="Удалить учителя",
 )
 async def remove_teacher(
-     full_name: models.Teacher_input = Body(..., description="ФИО учителя", example={
+     full_name: schemas.Teacher_input = Body(..., description="ФИО учителя", example={
         "full_name": "Демиденко Наталья Ильинична"
     })
 ) -> JSONResponse:

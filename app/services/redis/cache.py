@@ -1,48 +1,57 @@
 from redis.asyncio import Redis
 import os
 from loguru import logger
+import json
 
 
-
-async def check_schedule(group: str) -> str | None:
+async def check_lessons(group: str) -> str | None:
     try:
-        shedule_key = "schedule:" + group
-        
-        logger.debug(f"Checking schedule in cache redis: key: {shedule_key}")
+        logger.debug(f"Проверяем расписание в кеше redis. Группа: {group}")
 
-        # connect to redis
-        redis = Redis.from_url(os.getenv('redis_url'))
+        lessons_key = "lesssons:" + group
         
-        # get schedule from redis
-        schedule = await redis.get(name=shedule_key)
+        logger.debug("Подключаемся к redis")
+        redis = Redis.from_url(os.getenv('redis_url'),  decode_responses=True)
+        
+        logger.debug(f"Получаем инфу по ключу. Ключ: {lessons_key}")
+        lessons = await redis.get(name=lessons_key)
 
+        logger.debug("Закрываем соединение с redis")
         await redis.close()
     
-        return schedule.decode() if schedule else None
+        if lessons:
+            logger.debug("Расписание есть в кеше redis. Возвращаем его")
+
+            lessons_json = json.loads(lessons)
+            return lessons_json
+        
+        else:
+            logger.debug("Расписание не найдено в кеше redis. Возвращаем None")
+            return None
+        
     except Exception:
-        logger.exception(f"ERROR checking schedule in cache redis: key {group}")
+        logger.exception(f"Произошла ошибка при получании расписания из кеша. Группа: Исп-232")
         return None
 
 
 
-async def set_schedule(group: str, schedule: str) -> bool:
+async def set_lesssons(group: str, schedule: str) -> bool:
     try:
-        shedule_key = "schedule:" + group
+        logger.debug(f"Сохраняем расписание в кеше redis. Группа: {group}")
+        lessons_key = "lesssons:" + group
 
-        logger.debug(f"set schedule cache redis: key: {shedule_key}")
+        logger.debug("Подключаемся к redis")
+        redis = Redis.from_url(os.getenv('redis_url'), encoding="utf8")
 
-        # encoding schedule to bytes for redis
-        encoding_schedule = schedule.encode()
+        lesssons_str = json.dumps(schedule)
 
-        # connect to redis
-        redis = Redis.from_url(os.getenv('redis_url'))
+        await redis.set(name=lessons_key, value=lesssons_str, ex=10)
 
-        # set schedule to redis with expire time 15 seconds (optional)
-        await redis.set(name=shedule_key, value=encoding_schedule, ex=1)
-
+        logger.debug("Расписание успешно установленно. Закрываем соединение с redis")
         await redis.close()
 
+        logger.debug("Возвращаем True")
         return True
     except Exception:
-        logger.exception(f"ERROR set schedule in cache redis: key {group}")
+        logger.exception(f"При установке расписания в кеш redis произошла ошибка. Группа: {group}")
         return False

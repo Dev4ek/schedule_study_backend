@@ -1,25 +1,27 @@
 import json
-from ..services import database as db, rabbitmq
+from ..services import database as db
 from loguru import logger
 from aio_pika.abc import AbstractIncomingMessage
 import asyncio
 from . import time_utils
-from .. import models
+from .. import schemas
 from icecream import ic
 import pydantic
-from app import models
+from app import schemas
+from app.core.dependencies import SessionDep
+
 
 
 
 
 async def set_lesson(
-        lesson: models.Lesson_input, # lesson which need set
+        lesson: schemas.Lesson_input, # lesson which need set
 ):
     
     logger.debug("insert lesson for group: {group}")
 
     group = lesson.group
-    num_day = models.Day_num[lesson.day]
+    num_day = schemas.Day_num[lesson.day]
 
     try:
         # open session to database
@@ -37,9 +39,6 @@ async def set_lesson(
                             week=num_week,
                             )
                         )
-                    
-
-                    
 
                     # do qeury to database
                     result = await session.execute(query_check)
@@ -101,168 +100,129 @@ async def set_lesson(
 
 async def get_lessons(
         group: str, # group example "Исп-232"
-        reply_to: AbstractIncomingMessage, # rabbit queue name where to send response
+        session: SessionDep, # Сессия базы данных
 ) -> bool:
-    logger.debug("getting schedule for group: {group}")
-
     try:
-        # Open session to database
-        async with await db.get_session() as session:
-            async with session.begin():
-                num_day, num_week = await time_utils.get_day_and_week_number()
+        logger.debug("Получаем сегодняшний день и номер недели 1 или 2")
+        num_day, num_week = await time_utils.get_day_and_week_number()
+        logger.debug(f"Успешно получили num_day: {num_day}, num_week: {num_week}")
 
-                # Form query to get schedule from database
-                query_lessons = (
-                    db.select(
-                        db.table.Lessons.item, 
-                        db.table.Lessons.num_day, 
-                        db.table.Lessons.num_lesson, 
-                        db.table.Lessons.week, 
-                        db.table.Lessons.teacher, 
-                        db.table.Lessons.cabinet, 
-                    )
-                    .filter_by(group=group, week=num_week)
-                    .order_by(db.table.Lessons.num_day.asc(), db.table.Lessons.num_lesson.asc())                 
-                )
+        logger.debug("Формируем запросы на получение данных")
+        query_lessons = (
+            db.select(
+                db.table.Lessons.item, 
+                db.table.Lessons.num_day, 
+                db.table.Lessons.num_lesson, 
+                db.table.Lessons.week, 
+                db.table.Lessons.teacher, 
+                db.table.Lessons.cabinet
+            )
+            .filter_by(group=group, week=num_week)
+            .order_by(db.table.Lessons.num_day.asc(), db.table.Lessons.num_lesson.asc())
+        )
+        query_time = (
+            db.select(
+                db.table.Times.time, 
+                db.table.Times.num_lesson, 
+                db.table.Times.num_day
+            )
+            .order_by(db.table.Times.num_day.asc(), db.table.Times.num_lesson.asc())
+        )
 
-                query_time = (
-                    db.select(
-                        db.table.Times.time, 
-                        db.table.Times.num_lesson, 
-                        db.table.Times.num_day
-                    )
-                    .order_by(db.table.Times.num_day.asc(), db.table.Times.num_lesson.asc())                 
-                )
-
-                query_replacements = (
-                
-                        db.select(db.table.Replacements)
-                        .filter_by(
-                            group=group,
-                        )
-                )
-                # Execute query to database
-
-                # Execute query to database
-                result_lessons  = await session.execute(query_lessons)
-                result_time  = await session.execute(query_time)
-                result_replaceements = await session.execute(query_replacements)
-
-                # Getting result
-                schedule_data: list[models.Lesson_in_db] = result_lessons.all()
+        query_replacements = (
+            db.select(db.table.Replacements)
+            .filter_by(group=group)
+        )
 
 
-                # If schedule does not exist, return false
-                if not schedule_data:
-                    logger.info(f"schedule not in database for group: {group}")
+        logger.debug("Создаём заготовку для ответа")
+        final_schedule = []
+        schedule_info = {
+            "group": group,
+            "week": num_week,
+            "schedule": final_schedule
+            }
 
-                    await rabbitmq.response_in_queue_schedule(json.dumps(schedule_info), reply_to)
-                    return False
+        logger.debug("Выполняем запросы на получение данных")
+        result_lessons = await session.execute(query_lessons)
+        result_time = await session.execute(query_time)
+        result_replacements = await session.execute(query_replacements)
 
+        logger.debug("Получение результатов запросов")
+        schedule_data: list[schemas.Lesson_in_db] = result_lessons.all()
+        if not schedule_data:
+            logger.debug("Пар для этой группы нет. Возвращаем пустую заготовку")
+            return schedule_info
 
-                replacemets_data = result_replaceements.scalars().all()
+        time_data = result_time.all()
+        replacements_data = result_replacements.scalars().all()
 
+        logger.debug("Обрабатываем замены и формируем словарь")
+        replacements_key = {
 
-                replacemets_key = {}
-                for i in replacemets_data:
-                    replacemets_key[(i.num_day, i.num_lesson)] = {
-                        "item": i.item,
-                        "teacher": i.teacher,
-                        "cabinet": i.cabinet,
-                    }
-                ic(replacemets_key)
+            (i.num_day, i.num_lesson): {
+                "item": i.item, 
+                "teacher": i.teacher, 
+                "cabinet": i.cabinet
+            }
+            for i in replacements_data
+        }
 
+        logger.debug("Обрабатываем время и формируем словарь")
+        time_key = {
+            (i.num_day, i.num_lesson): i.time.split(', ')
+            for i in time_data
+        }
 
-                # Getting result
-                time_data = result_time.all()
+        logger.debug("Группируем пары по дням")
+        grouped_schedule = {}
+        for lesson in schedule_data:
+            grouped_schedule.setdefault(lesson.num_day, []).append(lesson)
 
-                time_key = {}
-                for i in time_data:
-                    time_key[(i.num_day, i.num_lesson)] = i.time.split(', ')
+        logger.debug("Сортируем расписание по дням, начиная с текущего дня")
+        sorted_days = sorted(grouped_schedule.keys())
+        try:
+            index = sorted_days.index(num_day)
+            sorted_schedule_keys = sorted_days[index:] + sorted_days[:index]
+        except ValueError:
+            logger.warning("Произошла ошибка. Оставляем такой же порядок")
+            sorted_schedule_keys = sorted_days
 
-                # Generate schedule
-                final_schedule = []
+        status_time = True
+        for day in sorted_schedule_keys:
+            logger.debug(f"Обрабатываем расписание для дня: {day}")
+            lessons_in_schedule = []
+            for lesson in grouped_schedule[day]:
+                event_time = time_key.get((lesson.num_day, lesson.num_lesson), [""])
+                previous_event_time = time_key.get((lesson.num_day, lesson.num_lesson - 1))
+                status, time, percentage = (await time_utils.check_time_lessons(event_time, previous_event_time)
+                                            if lesson.num_day == num_day else (False, "", 0))
 
-                schedule_info = {
-                    "group": group,
-                    "week": num_week,
-                    "schedule": final_schedule
-                }
+                lessons_in_schedule.append({
+                    "item": lesson.item,
+                    "cabinet": lesson.cabinet,
+                    "teacher": lesson.teacher,
+                    "event_time": event_time,
+                    "status": status if status_time else None,
+                    "time": time,
+                    "percentage": percentage,
+                    "replace": replacements_key.get((lesson.num_day, lesson.num_lesson))
+                })
+                if status:
+                    status_time = False
 
-                # Group lessons by days
-                grouped_schedule = {}
-                for lesson in schedule_data:
-                    if lesson.num_day not in grouped_schedule:
-                        grouped_schedule[lesson.num_day] = []
-                    grouped_schedule[lesson.num_day].append(lesson)
-
-                try:
-                    # Sort schedule data by current day
-                    sorted_days = sorted(grouped_schedule.keys())
-                    index = sorted_days.index(num_day)
-                    sorted_schedule_keys = sorted_days[index:] + sorted_days[:index]
-                except Exception:
-                    sorted_schedule_keys = sorted_days
-
-                status_time = True
-
-                for day in sorted_schedule_keys:
-                    lessons = grouped_schedule[day]
-
-                    lessons_in_schedule = []
-
-                    for lesson in lessons:
-                        try:
-                            event_time = time_key[(lesson.num_day, lesson.num_lesson)]
-
-                            if (lesson.num_day, lesson.num_lesson - 1) in time_key.keys():
-                                previous_event_time = time_key[(lesson.num_day, lesson.num_lesson - 1)]
-                            else:
-                                previous_event_time = None
-
-                            if lesson.num_day is num_day:
-                                status, time, percentage = await time_utils.check_time_lessons(event_time, previous_event_time)
-                            else:
-                                status, time, percentage = False, "", 0
-
-                        except KeyError:
-                            event_time = [""]
-                            status, time, percentage = False, "", 0
-
-                        lessons_in_schedule.append({
-                                        "item": lesson.item,
-                                        "cabinet": lesson.cabinet,
-                                        "teacher": lesson.teacher,
-                                        "event_time": event_time,
-                                        "status": status if status_time else None,
-                                        "time": time,
-                                        "percentage": percentage,
-                                        "replace":  replacemets_key.get((lesson.num_day, lesson.num_lesson), None)
-                                    })
-                        if status:
-                            status_time = False
-                        
-
-                    schedule = {
-                                "day": models.Num_day[day] + " (Сегодня)" if num_day == day else models.Num_day[day],
-                                "date": await time_utils.get_date_by_day(day),
-                                "lessons": lessons_in_schedule
-                            }
-                    final_schedule.append(schedule)
+            final_schedule.append({
+                "day": schemas.Num_day[day] + " (Сегодня)" if num_day == day else schemas.Num_day[day],
+                "date": await time_utils.get_date_by_day(day),
+                "lessons": lessons_in_schedule
+            })
 
 
-                final_schedule_str = json.dumps(schedule_info)
+        logger.debug("Расписание успешно сформированно. Вовзаращем его")
+        return final_schedule
 
-                logger.success(f"get schedule successfully: {group}")
-
-                await rabbitmq.response_in_queue_schedule(final_schedule_str, reply_to)
-
-                return True
-            
-
-                
     except Exception:
-        logger.exception(f"ERROR getting schedule from database")
+        logger.exception("Ошибка при получении расписания из базы данных")
         return False
 
 
@@ -275,7 +235,7 @@ async def remove_lesson(
 
     logger.debug(f"Removing lesson for group: {group} day: {day}, lesson_number: {num_lesson}")
 
-    num_day: int = models.Day_num[day]
+    num_day: int = schemas.Day_num[day]
 
     try:
 

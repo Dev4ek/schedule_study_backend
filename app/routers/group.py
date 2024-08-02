@@ -1,74 +1,174 @@
-import json
-from typing import Optional
-from fastapi import APIRouter, Depends, Query, Body,  Path
+from fastapi import APIRouter, Path
 from fastapi.responses import JSONResponse
-from ..core import dependencies, config
-from ..services import redis, rabbitmq
-from .. import models, utils
+from .. import utils
 from loguru import logger
-import asyncio
+from app.core.dependencies import SessionDep
 
-router = APIRouter()
+router_group = APIRouter(prefix="/group", tags=["Группы"])
 
-@router.get(
-        path="/groups",
-        tags=["Группы"],
-        dependencies=[Depends(dependencies.oauth2_scheme)],
+@router_group.get(
+        path="/all",
         description="Список всех групп",
-)
-async def get_teachers() -> JSONResponse:
-    logger.info("came request list all groups")
+        responses={
+            200: {
+                "description": "Получен список",
+                "content": {
+                    "application/json": {
+                        "example": {
+                            "groups": [
+                                "Исп-232",
+                                "Тод-211",
+                                "Зчс-222",
+                                "..."
+                            ]
+                        }
+                    }
+                },
+            },
 
-    getting = await utils.all_groups()
+            500: {
+                "description": "Ошибка при получении списка",
+                "content": {
+                    "application/json": {
+                        "example": {
+                            "message": "Неизвестная ошибка при получении списка групп"
+                        }
+                    }
+                },
+            },
+
+        }
+)
+async def get_groups(
+    session: SessionDep # Сессия базы даныых
+) -> JSONResponse:
+    logger.info("Запрос на получение списка всех групп")
+
+    getting = await utils.all_groups(session)
 
     if getting:
+        logger.error("Отдаём ответ сформированный список")
         return JSONResponse(content=getting, status_code=200)
     else:
-        logger.error("ERROR getting all groups")
+        logger.error("Неизвестная ошибка при получении списка всех групп. Отдаём ответ")
         return JSONResponse(content={"message": "Неизвестная ошибка при получении списка групп"}, status_code=500)
     
 
-
-
-@router.put(
-        path="/put/group",
-        tags=["Группы"],
-        dependencies=[Depends(dependencies.oauth2_scheme)],
+@router_group.put(
+        path="/put/{group}",
         description="Добавить группу",
+        responses={
+            200: {
+                "description": "Успешное добавление",
+                "content": {
+                    "application/json": {
+                        "example": {
+                            "message": "Группа успешно добавлена"
+                        }
+                    }
+                },
+            },
+
+            409: {
+                "description": "Уже существует",
+                "content": {
+                    "application/json": {
+                        "example": {
+                            "message": "Группа уже существует"
+                        }
+                    }
+                },
+            },
+
+            500: {
+                "description": "Ошибка при добавлении группы",
+                "content": {
+                    "application/json": {
+                        "example": {
+                            "message": "Неизвестная ошибка при добавлении группы"
+                        }
+                    }
+                },
+            },
+        }
 )
 async def put_group(
-    group: models.Group_input = Body(..., description="Группа")
+    session: SessionDep, # Сессия базы даных
+    group: str = Path(..., description="Группа", example="Исп-232")
 ) -> JSONResponse:
-    logger.info(f"came request add group {group.group}")
+    logger.info(f"Запрос на вставку группы. Группа: {group}")
 
-    adding = await utils.put_group(group.group)
+    adding: bool | str = await utils.put_group(group, session)
 
-    if adding:
+    if adding == "exists":
+        logger.info("Группа уже существует. Отдаём ответ")
+        return JSONResponse(content={"message": "Группа уже существует"}, status_code=409)
+
+    elif adding:
+        logger.info("Группа успешно добавлена. Отдаём ответ")
         return JSONResponse(content={"message": "Группа успешно добавлена"}, status_code=200)
+
     else:
-        logger.error("ERROR add group")
-        return JSONResponse(content={"message": "Неизвестная ошибка добавлении группы"}, status_code=500)
+        logger.error("Неизвестная ошибка при добавлении группы. Отдаём ответ")
+        return JSONResponse(content={"message": "Неизвестная ошибка при добавлении группы"}, status_code=500)
     
 
 
-@router.delete(
-        path="/remove/group",
-        tags=["Группы"],
-        dependencies=[Depends(dependencies.oauth2_scheme)],
+@router_group.delete(
+        path="/remove/{group}",
         description="Удалить группу",
+        responses={
+            200: {
+                "description": "Успешное удаление",
+                "content": {
+                    "application/json": {
+                        "example": {
+                            "message": "Группа успешно удалена"
+                        }
+                    }
+                },
+            },
+
+            404: {
+                "description": "Не найдена",
+                "content": {
+                    "application/json": {
+                        "example": {
+                            "message": "Группа не найдена"
+                        }
+                    }
+                },
+            },
+
+            500: {
+                "description": "Ошибка при удалении группы",
+                "content": {
+                    "application/json": {
+                        "example": {
+                            "message": "Неизвестная ошибка удалении группы"
+                        }
+                    }
+                },
+            },
+        },
 )
 async def remove_group(
-    group: models.Group_input
+    session: SessionDep, # Сессия базы даных
+    group: str = Path(..., description="Группа", example="Исп-232")
 ) -> JSONResponse:
-    logger.info(f"came request remove group {group.group}")
+    logger.info(f"Запрос на удаление группы. Группа: {group}")
 
-    removing = await utils.remove_group(group.group)
+    removing: bool | str = await utils.remove_group(group, session)
 
     if removing == "not found":
-        return JSONResponse(content={"message": "Группа не найдена"}, status_code=200)
+        logger.info("Группа не найдена. Отдаём ответ")
+        return JSONResponse(content={"message": "Группа не найдена"}, status_code=404)
+    
     elif removing:
+        logger.info("Группа успешно удалена. Отдаём ответ")
         return JSONResponse(content={"message": "Группа успешно удалена"}, status_code=200)
+    
     else:
-        logger.error("ERROR remove group")
+        logger.error("Ошибка при удалении группы. Отдаём ответ")
         return JSONResponse(content={"message": "Неизвестная ошибка удалении группы"}, status_code=500)
     

@@ -1,17 +1,17 @@
 import json
-from ..services import database as db, rabbitmq
+from ..services import database as db
 from loguru import logger
 from aio_pika.abc import AbstractIncomingMessage
 import asyncio
 from . import time_utils
-from .. import models
+from .. import schemas
 from icecream import ic
 import pydantic
-from app import models
+from app import schemas
 
 
 async def put_replace(
-        replace: models.Replace_input, # example: "Демиденко Наталья Ильинична"
+        replace: schemas.Replace_input, # example: "Демиденко Наталья Ильинична"
 ):
     logger.debug("start adding replace")
 
@@ -26,7 +26,7 @@ async def put_replace(
                    .filter_by(
                               group=replace.group,
                               date=replace.date,
-                              num_day=models.Day_num[replace.day],
+                              num_day=schemas.Day_num[replace.day],
                               num_lesson=replace.num_lesson,
                         )
                 )
@@ -48,7 +48,7 @@ async def put_replace(
                         .filter_by(
                               group=replace.group,
                               date=replace.date,
-                              num_day=models.Day_num[replace.day],
+                              num_day=schemas.Day_num[replace.day],
                               num_lesson=replace.num_lesson,
                         )
                     )
@@ -67,7 +67,7 @@ async def put_replace(
                         .values(
                             group=replace.group,
                             date=replace.date,
-                            num_day=models.Day_num[replace.day],
+                            num_day=schemas.Day_num[replace.day],
                             num_lesson=replace.num_lesson,
                             item=replace.item,
                             teacher=replace.teacher,
@@ -118,7 +118,7 @@ async def all_replacemetns(
                             "item": replace.item,
                             "teacher": replace.teacher,
                             "cabinet": replace.cabinet,
-                            "day": models.Num_day[replace.num_day],
+                            "day": schemas.Num_day[replace.num_day],
                             "lesson_num": replace.num_lesson,
                         }
                     )
@@ -136,7 +136,7 @@ async def all_replacemetns(
      
 
 
-async def remove_replace(replace: models.Replace_remove):
+async def remove_replace(replace: schemas.Replace_remove):
     logger.debug(f"start remove remove")
 
     try:
@@ -148,7 +148,7 @@ async def remove_replace(replace: models.Replace_remove):
                     db.select(db.table.Replacements)
                    .filter_by(
                               group=replace.group,
-                              num_day=models.Day_num[replace.day],
+                              num_day=schemas.Day_num[replace.day],
                               num_lesson=replace.num_lesson
                         )
                 )
@@ -161,7 +161,7 @@ async def remove_replace(replace: models.Replace_remove):
                         db.delete(db.table.Replacements)
                        .filter(
                                 db.table.Replacements.group == replace.group,
-                                db.table.Replacements.num_day == models.Day_num[replace.day],
+                                db.table.Replacements.num_day == schemas.Day_num[replace.day],
                                 db.table.Replacements.num_lesson == replace.num_lesson,
                         )
                     )

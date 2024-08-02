@@ -3,8 +3,8 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Query, Body,  Path
 from fastapi.responses import JSONResponse
 from ..core import dependencies, config
-from ..services import redis, rabbitmq
-from .. import models, utils
+from ..services import redis
+from .. import schemas, utils
 from loguru import logger
 import asyncio
 
@@ -13,7 +13,6 @@ router = APIRouter()
 @router.get(
         path="/replacements",
         tags=["Замены"],
-        dependencies=[Depends(dependencies.oauth2_scheme)],
         description="Список всех замен",
 )
 async def get_replacements(
@@ -33,11 +32,10 @@ async def get_replacements(
 @router.put(
         path="/put/replace",
         tags=["Замены"],
-        dependencies=[Depends(dependencies.oauth2_scheme)],
         description="Добавить замену",
 )
 async def put_replace(
-    replace: models.Replace_input = Body(..., description="Замена", example={
+    replace: schemas.Replace_input = Body(..., description="Замена", example={
         "group": "Исп-232",
         "date": "23 Сентября",
         "day": "Понедельник",
@@ -65,11 +63,10 @@ async def put_replace(
 @router.delete(
         path="/remove/replace",
         tags=["Замены"],
-        dependencies=[Depends(dependencies.oauth2_scheme)],
         description="Удалить замену",
 )
 async def remove_replace(
-    replace: models.Replace_remove = Body(..., description="Удалить замену", example={
+    replace: schemas.Replace_remove = Body(..., description="Удалить замену", example={
         "group": "Исп-232",
         "day": "Понедельник",
         "num_lesson": 1,

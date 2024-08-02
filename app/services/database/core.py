@@ -1,4 +1,4 @@
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy import create_engine
 import os
 from sqlalchemy.orm import sessionmaker
@@ -13,26 +13,27 @@ async def get_engine(sync=False):
         engine = create_async_engine(
 
                                     url=os.getenv('database_url'),
-                                    echo=True,
+                                    echo=False,
                                 )
     else:
         engine = create_engine(
                                     url=os.getenv('sync_database_url'),
-                                    echo=True,
+                                    echo=False,
                                 )
     return engine
     
 
 
-
 async def get_session():
     engine = await get_engine()
 
-    Session_ = sessionmaker(
-        bind=engine, class_=AsyncSession, expire_on_commit=False
-        )
-    
-    return Session_()
+    sessionmaker = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+
+    async with sessionmaker() as session:
+        try:
+            yield session
+        finally:
+            await session.close()
 
 
 async def create_tables():
