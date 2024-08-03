@@ -1,41 +1,84 @@
-import json
-from typing import Optional
 from fastapi import APIRouter, Depends, Query, Body,  Path
 from fastapi.responses import JSONResponse
-from ..core import dependencies, config
-from ..services import redis
 from .. import schemas, utils
 from loguru import logger
-import asyncio
+from app.core.dependencies import SessionDep
 
-router = APIRouter()
 
-@router.get(
-        path="/replacements",
-        tags=["Замены"],
-        description="Список всех замен",
+router_replace = APIRouter(prefix="/replace", tags=["Замены"])
+
+@router_replace.get(
+        path="/{group}",
+        description="Список всех замен на группу",
+        responses={
+            200: {
+                "description": "Список замен",
+                "content": {
+                    "application/json": {
+                        "example": 
+                           {
+                            "group": "Исп-232",
+                            "date": "1 Августа",
+                            "replacemetns": [
+                                {
+                                    "id": 3,
+                                    "item": "Английский язые",
+                                    "teacher": "Демиденко Наталья Ильинична",
+                                    "cabinet": "36-2",
+                                    "day": "Суббота",
+                                    "num_lesson": 1
+                                },
+                                {
+                                    "id": 4,
+                                    "item": "Английский язык",
+                                    "teacher": "Демиденко Н.И.",
+                                    "cabinet": "405-1",
+                                    "day": "Четверг",
+                                    "num_lesson": 1
+                                },
+                                
+                            ]
+                        }
+                    }
+                },
+            },
+
+            500: {
+                "description": "Ошибка установки",
+                "content": {
+                    "application/json": {
+                        "example": {
+                            "message": "Неизвестная ошибка при получении списка групп"
+                        }
+                    }
+                },
+            },
+        }
 )
 async def get_replacements(
-    group: str = Query(..., description="Группа", example="Исп-232")
+    session: SessionDep,
+    group: str = Path(..., description="Группа", example="Исп-232")
 ) -> JSONResponse:
-    logger.info("came request list all groups")
+    logger.info("Запрос на получение всех замен на группу {group}")
 
-    getting = await utils.all_replacemetns(group)
+    getting: bool | schemas.Replace_output = await utils.replacemetns_group(group, session)
 
     if getting:
+        logger.info("Отдаём ответ список замен")
         return JSONResponse(content=getting, status_code=200)
     else:
-        logger.error("ERROR getting all groups")
-        return JSONResponse(content={"message": "Неизвестная ошибка при получении списка групп"}, status_code=500)
+        logger.error("Отдаём ответ. Ошибка при получении замен")
+        return JSONResponse(content={"message": "Неизвестная ошибка при получении списка замен"}, status_code=500)
 
 
-@router.put(
-        path="/put/replace",
+@router_replace.put(
+        path="/put",
         tags=["Замены"],
         description="Добавить замену",
 )
 async def put_replace(
-    replace: schemas.Replace_input = Body(..., description="Замена", example={
+    session: SessionDep,
+    payload: schemas.Replace_input = Body(..., description="Замена", example={
         "group": "Исп-232",
         "date": "23 Сентября",
         "day": "Понедельник",
@@ -46,40 +89,74 @@ async def put_replace(
     })
 ) -> JSONResponse:
     
-    logger.info(f"came request add replace {replace}")
+    logger.info(f"Запрос на вставку замены {payload.model_dump_json()}")
 
-    adding = await utils.put_replace(replace)
+    adding: bool = await utils.put_replace(payload, session)
 
-    if adding == "not date":
-        return JSONResponse(content={"message": "Чтобы добавить замены с другой датой, удалите все передыдущие замены"}, status_code=200)
-
-    elif adding:
+    if adding:
+        logger.info("Замена успешно добавлена. Отдаём ответ")
         return JSONResponse(content={"message": "Замена успешно добавлена"}, status_code=200)
     else:
-        logger.error("ERROR add replace")
+        logger.error("Ошибка при добавлении замены. Отдаём ответ")
         return JSONResponse(content={"message": "Неизвестная ошибка при добавлении замены"}, status_code=500)
 
 
-@router.delete(
-        path="/remove/replace",
-        tags=["Замены"],
+@router_replace.delete(
+        path="/remove",
         description="Удалить замену",
+        responses={
+            200: {
+                "description": "Успешное удаление",
+                "content": {
+                    "application/json": {
+                        "example": {
+                            "message": "Замена успешно удалена"
+                        }
+                    }
+                },
+            },
+
+            404: {
+                "description": "Не найдена",
+                "content": {
+                    "application/json": {
+                        "example": {
+                            "message": "Замена не найдена"
+                        }
+                    }
+                },
+            },
+
+            500: {
+                "description": "Ошибка при удалении группы",
+                "content": {
+                    "application/json": {
+                        "example": {
+                            "message": "Неизвестная ошибка удалении замены"
+                        }
+                    }
+                },
+            },
+        },
 )
 async def remove_replace(
-    replace: schemas.Replace_remove = Body(..., description="Удалить замену", example={
+    session: SessionDep,
+    payload: schemas.Replace_remove = Body(..., description="Параметры замены", example={
         "group": "Исп-232",
         "day": "Понедельник",
         "num_lesson": 1,
     })
 ) -> JSONResponse:
-    logger.info(f"came request remove replace {replace}")
+    logger.info(f"Запрос на удаление замены. Payload: {payload.model_dump_json()}")
 
-    removing = await utils.remove_replace(replace)
+    removing: bool | str = await utils.remove_replace(payload, session)
 
     if removing == "not found":
-        return JSONResponse(content={"message": "Замена не найдена"}, status_code=200)
+        logger.info("Замена не найдена. Отдаём ответ")
+        return JSONResponse(content={"message": "Замена не найдена"}, status_code=404)
     elif removing:
+        logger.info("Замена успешно удалена. Отдаём ответ")
         return JSONResponse(content={"message": "Замена успешно удалена"}, status_code=200)
     else:
-        logger.error("ERROR remove replace")
+        logger.error("Неизвестная ошибка при удалении . Отдаём ответ")
         return JSONResponse(content={"message": "Неизвестная ошибка удалении замены"}, status_code=500)

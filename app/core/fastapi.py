@@ -31,11 +31,11 @@ app.add_middleware(
 
 
 app.include_router(routers.lesson.router_lesson)
-app.include_router(routers.time.router)
+app.include_router(routers.time.router_time)
 app.include_router(routers.group.router_group)
-app.include_router(routers.teacher.router)
+app.include_router(routers.teacher.router_teacher)
 app.include_router(routers.cabinet.router_cabinet)
-app.include_router(routers.replace.router)
+app.include_router(routers.replace.router_replace)
 
 
 @app.middleware("http")

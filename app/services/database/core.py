@@ -8,6 +8,7 @@ from sqlalchemy_utils import database_exists, create_database
 
 
 async def get_engine(sync=False):
+    logger.debug("Получаем engine базы данных")
 
     if not sync:
         engine = create_async_engine(
@@ -25,12 +26,14 @@ async def get_engine(sync=False):
 
 
 async def get_session():
+    logger.debug("Создаем сессию базы данных")
     engine = await get_engine()
 
     sessionmaker = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
     async with sessionmaker() as session:
         try:
+            logger.debug("Возващаем генератором сессию базы данных")
             yield session
         finally:
             await session.close()
@@ -41,23 +44,10 @@ async def create_tables():
 
     if not database_exists(engine.url):
         create_database(engine.url)
-        logger.success("database created successfully")
+        logger.debug("База данных успешно создана")
 
-    logger.debug("creating tables...")
-
+    logger.debug("Запускаем создание таблиц")
     base_ORM.Base.metadata.create_all(engine, checkfirst=True)
     logger.info("tables created successfully")
     return True
 
-
-# async def drop_tables():
-#     engine = await get_engine(async_eng=True)
-#     async with engine.begin() as conn:
-#         await conn.run_sync(base.Base.metadata.drop_all)
-# async def create_database():
-
-#     engine = create_engine(os.getenv("postgres_url"))
-
-#     with engine.connect() as conn:
-#         conn.execute(f"CREATE DATABASE schedule")
-#         logger.info("database created successfully")

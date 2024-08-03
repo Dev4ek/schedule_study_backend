@@ -11,9 +11,8 @@ from ..services import database as db
 
 SessionDep = Annotated[AsyncSession, Depends(db.get_session)]
 
-
 def verify_version(
-        client_version: str = Header(..., description="Версия приложения у клиента", example="1.0.0")
+        client_version: str = Header(..., description="Версия приложения", example="1.0.0")
         ):
     
     if client_version != config.version:

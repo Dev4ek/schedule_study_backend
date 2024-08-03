@@ -1,7 +1,8 @@
 from enum import Enum
 from pydantic import BaseModel, Field
+from typing import Annotated
 
-Day_num = {
+Day_to_num = {
     "Понедельник": 1,
     "Вторник": 2,
     "Среда": 3,
@@ -11,7 +12,7 @@ Day_num = {
     "Воскресенье": 7,
 }
 
-Num_day = {
+Num_to_day = {
     1: "Понедельник",
     2: "Вторник",
     3: "Среда",
@@ -21,7 +22,7 @@ Num_day = {
     7: "Воскресенье",
 }
 
-Num_month = {
+Num_to_month = {
     1: "Января",
     2: "Февраля",
     3: "Марта",
@@ -49,10 +50,10 @@ class Days(str, Enum):
 
 
 class Put_time(BaseModel):
-    day: Days = Field(..., description="День недели", example="Понедельник"),
-    num_lesson: int = Field(..., description="Номер пары, 0-4, где 0 это классный час", ge=0, le=4, example=2),
+    day: Days = Field(..., title="День", examples=["Понедельник", "Вторник"])
+    num_lesson: Annotated[int, Field(strict=True, ge=0, le=4, description="Номер пары, где 0-4, где - это классный час")]
     time: str = Field(..., description="Время для пары", example="8:30 - 9:15, 9:15 - 10:00")
 
 class Remove_time(BaseModel):
-    day: str = Field(..., description="День недели", example="Понедельник"),
-    num_lesson: int = Field(..., description="Номер пары, 0-4, где 0 это классный час", ge=0, le=4, example=2),
+    day: Days = Field(..., title="День", examples=["Понедельник", "Вторник"])
+    num_lesson: Annotated[int, Field(strict=True, ge=0, le=4, description="Номер пары, где 0-4, где - это классный час")]

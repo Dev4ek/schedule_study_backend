@@ -1,126 +1,109 @@
-import json
 from ..services import database as db
 from loguru import logger
-from aio_pika.abc import AbstractIncomingMessage
-import asyncio
-from . import time_utils
-from .. import schemas
-from icecream import ic
-import pydantic
-from app import schemas
+from app.core.dependencies import SessionDep
 
 
-async def all_teachers():
-    logger.debug("getting all teachers")
-
+async def all_teachers(
+        session: SessionDep
+) -> dict | bool:
     try:
-        # Open session to database
-        async with await db.get_session() as session:
-            async with session.begin():
+        logger.debug("Формируем запрос в бд")
+        query = (
+            db.select(db.table.Teachers.full_name)
+        )
 
-                # Form query to get all teachers from database
-                query = (
-                    db.select(db.table.Teachers.full_name)
-                )
+        logger.debug("Выполняем запрос в бд")
+        result = await session.execute(query)
 
-                # Execute query to database
-                result = await session.execute(query)
-
-                # Getting result
-                teachers = result.scalars().all()
-                
-
-                return {
-                    "teachers": teachers
-                }
-
+        logger.debug("Получаем данные из бд")
+        teachers = result.scalars().all()
+        
+        logger.debug("Вовзращаем json учителей")
+        return {
+            "teachers": teachers
+        }
     except Exception:
-        logger.exception(f"ERROR getting all teachers from database")
+        logger.exception(f"Произошла ошибка при получении списка учителей")
         return False
     
 
 
 async def put_teacher(
         full_name: str, # example: "Демиденко Наталья Ильинична"
-):
-    logger.debug("start adding teacher")
-
+        session: SessionDep
+) -> bool | str:
     
     try:
-        # Open session to database
-        async with await db.get_session() as session:
-            async with session.begin():
+        logger.debug("Формируем запрос на проверку наличия учителя в бд")        
+        query_check = (
+            db.select(db.table.Teachers.full_name)
+            .where(db.table.Teachers.full_name == full_name)
+        )
+        logger.debug("Делаем запрос в бд")
+        result = await session.execute(query_check)
 
-                #checking teacher in db
+        logger.debug("Получаем результат scalar_one_or_none")
+        exists_teacher = result.scalar_one_or_none()
 
-                query_check = (
-                    db.select(db.table.Teachers.full_name)
-                   .where(db.table.Teachers.full_name == full_name)
-                )
+        if exists_teacher:
+            logger.debug("Учитель существует. Возвращаем exists")
+            return "exists"
 
-                result = await session.execute(query_check)
+        else:
+            logger.debug("Учителя не существует. Формируем запрос на добавление учителя в бд")
+            query = (
+                db.insert(db.table.Teachers)
+                .values(full_name=full_name, short_name=full_name)
+            )
 
-                exists_teacher = result.scalar_one_or_none()
+        logger.debug("Делаем запрос в бд")
+        await session.execute(query)
+        await session.commit()
 
-                if exists_teacher:
-                    query = (
-                        db.update(
-                            db.table.Teachers
-                        )
-                        .values(
-                            full_name = full_name, 
-                            short_name = full_name
-                        )
-                    )
-
-                else:
-                    query = (
-                        db.insert(db.table.Teachers)
-                        .values(full_name=full_name, short_name=full_name)
-                    )
-
-                await session.execute(query)
-                return True
+        logger.debug("Учитель успешно добавлен в бд. Возвращаем True")
+        return True
 
     except Exception:
-        logger.exception(f"ERROR adding teacher to database")
+        logger.exception(f"При добавлении учителя произошла ошибка")
         return False
     
+
+
+    
 async def remove_teacher(
-        full_name: str # example: "Демиденко Наталья Ильинична"
-):
-    
-    logger.debug("start removing teacher")
-
+        full_name: str, # example: "Демиденко Наталья Ильинична"
+        session: SessionDep
+) -> bool | str:
     try:
-        # Open session to database
-        async with await db.get_session() as session:
-            async with session.begin():
-                
-                # checking teacher in db
+        logger.debug("Формируем запрос в бд на проверку учителя в бд")
+        query_check = (
+            db.select(db.table.Teachers.full_name)
+            .where(db.table.Teachers.full_name == full_name)
+        )
+        logger.debug("Выполняем запрос в бд")
+        result = await session.execute(query_check)
 
-                query_check = (
-                    db.select(db.table.Teachers.full_name)
-                   .where(db.table.Teachers.full_name == full_name)
-                )
+        logger.debug("Получаем результат scalar_one_or_none")
+        exists_teacher = result.scalar_one_or_none()
 
-                result = await session.execute(query_check)
+        if exists_teacher:
+            logger.debug("Учитель есть в бд. Формируем запрос на удаление")
+            query = (
+                db.delete(db.table.Teachers)
+                .where(db.table.Teachers.full_name == full_name)
+            )
 
-                exists_teacher = result.scalar_one_or_none()
+            logger.debug("Выполняем запрос в бд")
+            await session.execute(query)
+            await session.commit()
 
-                if exists_teacher:
-                    query = (
-                        db.delete(db.table.Teachers)
-                       .where(db.table.Teachers.full_name == full_name)
-                    )
+            logger.debug("Учитель успешно удалён из бд. Возвращаем True")
+            return True
+        else:
+            logger.debug(f"Учитель не найден в бд. Вовзаращаем not found")
+            return "not found"
 
-                    await session.execute(query)
-                    return True
-                else:
-                    logger.debug(f"Teacher {full_name} not found in database")
-                    return "not found"
 
-    
     except Exception:
-        logger.exception(f"ERROR remove teacher from database")
+        logger.exception(f"Произошла ошибка при встаке учителя в бд")
         return False

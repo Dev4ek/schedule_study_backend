@@ -1,107 +1,15 @@
-import json
 from ..services import database as db
 from loguru import logger
-from aio_pika.abc import AbstractIncomingMessage
-import asyncio
 from . import time_utils
 from .. import schemas
-from icecream import ic
-import pydantic
 from app import schemas
 from app.core.dependencies import SessionDep
-
-
-
-
-
-async def set_lesson(
-        lesson: schemas.Lesson_input, # lesson which need set
-):
-    
-    logger.debug("insert lesson for group: {group}")
-
-    group = lesson.group
-    num_day = schemas.Day_num[lesson.day]
-
-    try:
-        # open session to database
-        async with await db.get_session() as session:
-            async with session.begin():
-
-                async def set_lesson_in_db(num_week):
-                    # checking group existence in database
-                    query_check = (
-                        db.select(db.table.Lessons.id)
-                        .filter_by(
-                            group=group, 
-                            num_day=num_day, 
-                            num_lesson=lesson.num_lesson,
-                            week=num_week,
-                            )
-                        )
-
-                    # do qeury to database
-                    result = await session.execute(query_check)
-
-                    # getting result
-                    existing_schedule = result.scalar_one_or_none()
-
-                    # if schedule exists in database, update it OR insert new group with new schedule
-                    if existing_schedule:
-                        query = (
-                            db.update(db.table.Lessons)
-                            .filter_by(
-                                    group=group,
-                                    num_day=num_day,
-                                    num_lesson=lesson.num_lesson,
-                                    week=num_week,
-                                    )
-                            .values(
-                                item=lesson.item,
-                                teacher=lesson.teacher,
-                                cabinet=lesson.cabinet,
-                                )
-                        )
-
-                    # if schedule not exists in database, insert new group with new schedule
-                    else:
-                        query = (
-                            db.insert(db.table.Lessons)
-
-                            .values(
-                                num_day=num_day,
-                                group=group,
-                                item=lesson.item,
-                                num_lesson=lesson.num_lesson,
-                                teacher=lesson.teacher,
-                                cabinet=lesson.cabinet,
-                                week=num_week,
-                                )
-                        )
-
-                    # do qeury to database
-                    await session.execute(query)
-
-
-
-                if lesson.week == 0:
-                    for week in range(1, 3):
-                        await set_lesson_in_db(week)
-                else:
-                    await set_lesson_in_db(lesson.week)
-
-                return True
-    except Exception:
-        logger.exception(f"ERROR setting schedule to database")
-        return False
-
-
 
 
 async def get_lessons(
         group: str, # group example "Исп-232"
         session: SessionDep, # Сессия базы данных
-) -> bool:
+) -> bool | schemas.Schedule_output:
     try:
         logger.debug("Получаем сегодняшний день и номер недели 1 или 2")
         num_day, num_week = await time_utils.get_day_and_week_number()
@@ -149,7 +57,7 @@ async def get_lessons(
         result_replacements = await session.execute(query_replacements)
 
         logger.debug("Получение результатов запросов")
-        schedule_data: list[schemas.Lesson_in_db] = result_lessons.all()
+        schedule_data = result_lessons.all()
         if not schedule_data:
             logger.debug("Пар для этой группы нет. Возвращаем пустую заготовку")
             return schedule_info
@@ -185,7 +93,7 @@ async def get_lessons(
             index = sorted_days.index(num_day)
             sorted_schedule_keys = sorted_days[index:] + sorted_days[:index]
         except ValueError:
-            logger.warning("Произошла ошибка. Оставляем такой же порядок")
+            logger.warning("Произошла ошибка. На сегодня нет расписания. Оставляем такой же порядок")
             sorted_schedule_keys = sorted_days
 
         status_time = True
@@ -203,6 +111,7 @@ async def get_lessons(
                     "cabinet": lesson.cabinet,
                     "teacher": lesson.teacher,
                     "event_time": event_time,
+                    "num_lesson": lesson.num_lesson,
                     "status": status if status_time else None,
                     "time": time,
                     "percentage": percentage,
@@ -212,61 +121,137 @@ async def get_lessons(
                     status_time = False
 
             final_schedule.append({
-                "day": schemas.Num_day[day] + " (Сегодня)" if num_day == day else schemas.Num_day[day],
+                "day": schemas.Num_to_day[day] + " (Сегодня)" if num_day == day else schemas.Num_to_day[day],
                 "date": await time_utils.get_date_by_day(day),
                 "lessons": lessons_in_schedule
             })
 
 
         logger.debug("Расписание успешно сформированно. Вовзаращем его")
-        return final_schedule
+        return schedule_info
 
     except Exception:
         logger.exception("Ошибка при получении расписания из базы данных")
         return False
 
 
-async def remove_lesson(
-        group: str, # example "Исп-232"
-        day: str, # example "Понедельник"
-        num_lesson: int, # num lesson example 1 or 2 or 3...
-        num_week: int
-):
+async def put_lesson(
+    payload: schemas.Lesson_input, # Схема установки расписания
+    session: SessionDep, # Сессия базы данных
+) -> bool:
+    
+    group = payload.group
+    num_day = schemas.Day_to_num[payload.day]
 
-    logger.debug(f"Removing lesson for group: {group} day: {day}, lesson_number: {num_lesson}")
+    # функция для замены или установки расписания
+    async def _upsert_lesson(num_week):
+        logger.debug("Формируем запрос на существование пары в дб")
+        query_check = (
+            db.select(db.table.Lessons.id)
+            .filter_by(
+                group=group,
+                num_day=num_day,
+                num_lesson=payload.num_lesson,
+                week=num_week,
+            )
+        )
 
-    num_day: int = schemas.Day_num[day]
+        logger.debug("Выполняем запрос в базу данных для проверки существования пары")
+        result = await session.execute(query_check)
+
+        logger.debug("Получаем результат scalar_one_or_none")
+        existing_schedule = result.scalar_one_or_none()
+
+        if existing_schedule:
+            logger.debug("Пара найдена в базе данных. Формируем запрос на обновление данных пары")
+            query = (
+                db.update(db.table.Lessons)
+                .filter_by(
+                    group=group,
+                    num_day=num_day,
+                    num_lesson=payload.num_lesson,
+                    week=num_week,
+                )
+                .values(
+                    item=payload.item,
+                    teacher=payload.teacher,
+                    cabinet=payload.cabinet,
+                )
+            )
+        else:
+            logger.debug("Пара не найдена в базе данных. Формируем запрос на добавление пары")
+            query = (
+                db.insert(db.table.Lessons)
+                .values(
+                    num_day=num_day,
+                    group=group,
+                    item=payload.item,
+                    num_lesson=payload.num_lesson,
+                    teacher=payload.teacher,
+                    cabinet=payload.cabinet,
+                    week=num_week,
+                )
+            )
+
+        logger.debug("Выполняем запрос в базу данных")
+        await session.execute(query)
 
     try:
+        if payload.week == 0:
+            logger.debug("Устанавливаем пару для двух недель")
+            for week in range(1, 3):
+                logger.debug(f"Устанавливаем расписание на неделю {week}")
+                await _upsert_lesson(week)
+        else:
+            logger.debug(f"Устанавливаем расписание на указанную неделю {payload.week}")
+            await _upsert_lesson(payload.week)
 
-        # Open session to database
-        async with await db.get_session() as session:
-            async with session.begin():
+        await session.commit()
 
-                async def _removing_lessons(_num_week):
-                    # checking group existence in database
-                    query_check = (
-                            db.delete(db.table.Lessons)
-                            .filter_by(
-                                group=group, 
-                                num_day=num_day, 
-                                num_lesson=num_lesson,
-                                week=_num_week,
-                                )
-                            )
-
-                    # do qeury to database
-                    await session.execute(query_check)
+        logger.debug("Пара была установлена. Возвращаем True")
+        return True
+    except Exception as e:
+        logger.exception("Ошибка при установке пары в базу данных")
+        return False
 
 
-                if num_week == 0:
-                    for week in range(1, 3):
-                        await _removing_lessons(week)
-                else:
-                    await _removing_lessons(week)
 
-                return True
+async def remove_lesson(
+        payload: schemas.Remove_lesson,
+        session: SessionDep, # Сессия базы данных
+):
+
+    num_day: int = schemas.Day_to_num[payload.day]
+
+    try:
+        # функция для удаления пары 
+        async def _removing_lessons(_num_week):
+            logger.debug(f"Формируем запрос на удалеине пары где num_week = {_num_week}")
+            query_check = (
+                    db.delete(db.table.Lessons)
+                    .filter_by(
+                        group=payload.group, 
+                        num_day=num_day, 
+                        num_lesson=payload.num_lesson,
+                        week=_num_week,
+                        )
+                    )
+
+            logger.debug("Делаем запрос в бд")
+            await session.execute(query_check)
+
+
+        if payload.week == 0:
+            for week in range(1, 3):
+                await _removing_lessons(week)
+        else:
+            await _removing_lessons(payload.week)
+
+        await session.commit()
+
+        logger.debug("Успешно удалено. Возвращаем True")
+        return True
 
     except Exception:
-        logger.exception(f"ERROR removing lesson from database")
+        logger.exception(f"Произошла ошибка при удалении пары")
         return False

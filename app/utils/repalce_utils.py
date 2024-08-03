@@ -1,176 +1,176 @@
-import json
 from ..services import database as db
 from loguru import logger
-from aio_pika.abc import AbstractIncomingMessage
-import asyncio
-from . import time_utils
 from .. import schemas
-from icecream import ic
-import pydantic
 from app import schemas
+from app.core.dependencies import SessionDep
+
 
 
 async def put_replace(
-        replace: schemas.Replace_input, # example: "Демиденко Наталья Ильинична"
-):
-    logger.debug("start adding replace")
-
+        payload: schemas.Replace_input,
+        session: SessionDep, # Сессия базы данных
+) -> bool:
     try:
-        # Open session to database
-        async with await db.get_session() as session:
-            async with session.begin():
-
-                #checking replace in db
-                query_check = (
-                    db.select(db.table.Replacements.id)
-                   .filter_by(
-                              group=replace.group,
-                              date=replace.date,
-                              num_day=schemas.Day_num[replace.day],
-                              num_lesson=replace.num_lesson,
-                        )
+        logger.debug(f"Формируем запрос на проверку существующей замены")
+        query_check = (
+            db.select(db.table.Replacements.id)
+            .filter_by(
+                        group=payload.group,
+                        date=payload.date,
+                        num_day=schemas.Day_to_num[payload.day],
+                        num_lesson=payload.num_lesson,
                 )
+        )
 
-                result = await session.execute(query_check)
-                exists_replace = result.scalar_one_or_none()
+        logger.debug("Делаем запрос в бд")
+        result = await session.execute(query_check)
 
+        logger.debug("Получаем результат scalar_one_or_none")
+        exists_replace = result.scalar_one_or_none()
 
-                if exists_replace:
-                    query = (
-                        db.update(
-                            db.table.Replacements
-                        )
-                        .values(
-                            item=replace.item,
-                            teacher=replace.teacher,
-                            cabinet=replace.cabinet,
-                        )
-                        .filter_by(
-                              group=replace.group,
-                              date=replace.date,
-                              num_day=schemas.Day_num[replace.day],
-                              num_lesson=replace.num_lesson,
-                        )
-                    )
+        if exists_replace:
+            logger.debug("Замена существует. Формируем запрос на изменение замены")
+            query = (
+                db.update(
+                    db.table.Replacements
+                )
+                .values(
+                    item=payload.item,
+                    teacher=payload.teacher,
+                    cabinet=payload.cabinet,
+                )
+                .filter_by(
+                        group=payload.group,
+                        date=payload.date,
+                        num_day=schemas.Day_to_num[payload.day],
+                        num_lesson=payload.num_lesson,
+                )
+            )
 
-                else:
-                    get_date_query = db.select(db.table.Replacements.date).limit(1)
-                    result = await session.execute(get_date_query)
-                    last_date = result.scalar_one_or_none()
+        else:
+            logger.debug("Замена не существует. Формируем запрос на добавление замены")
 
+            query = (
+                db.insert(db.table.Replacements)
+                .values(
+                    group=payload.group,
+                    date=payload.date,
+                    num_day=schemas.Day_to_num[payload.day],
+                    num_lesson=payload.num_lesson,
+                    item=payload.item,
+                    teacher=payload.teacher,
+                    cabinet=payload.cabinet,
+                )
+            )
 
-                    # if not last_date == replace.date:
-                    #     return "not date"
+        logger.debug("Делаем запрос в бд")
+        await session.execute(query)
+        await session.commit()
 
-                    query = (
-                        db.insert(db.table.Replacements)
-                        .values(
-                            group=replace.group,
-                            date=replace.date,
-                            num_day=schemas.Day_num[replace.day],
-                            num_lesson=replace.num_lesson,
-                            item=replace.item,
-                            teacher=replace.teacher,
-                            cabinet=replace.cabinet,
-                        )
-                    )
-
-                await session.execute(query)
-                return True
+        logger.debug("Успешно выполнено. Вовзращаем True")
+        return True
 
     except Exception:
-        logger.exception(f"ERROR adding replace to database")
+        logger.exception(f"Произошла ошибка при добавлении замены в бд")
         return False
     
 
 
 
 
-async def all_replacemetns(
-        group: str # example "Исп-232"
-):
-    logger.debug(f"start selet replacemetns for group {group}")
-
+async def replacemetns_group(
+        group: str, # example "Исп-232"
+        session: SessionDep # Сессия базы данных
+) -> schemas.Replace_output | bool:
     try:
-        # Open session to database
-        async with await db.get_session() as session:
-            async with session.begin():
+        logger.debug("Формируем запрос в бд")
 
-                query_select = (
-                    db.select(db.table.Replacements)
-                   .filter_by(
-                              group=group,
-                        )
+        query_select = (
+            db.select(db.table.Replacements)
+            .filter_by(
+                        group=group,
                 )
+        )
 
-                result = await session.execute(query_select)
-                results = result.scalars().all()
+        logger.debug("Выполняем запрос в бд")
+        result = await session.execute(query_select)
 
-                date_replacemetns = None
-                list_replacemetns = []
+        logger.debug("Получаем данные")
+        results = result.scalars().all()
 
+        date_replacemetns = None
+        list_replacemetns = []
 
-                for replace in results:
-                    date_replacemetns = replace.date
-                    list_replacemetns.append(
-                        {
-                            "id": replace.id,
-                            "item": replace.item,
-                            "teacher": replace.teacher,
-                            "cabinet": replace.cabinet,
-                            "day": schemas.Num_day[replace.num_day],
-                            "lesson_num": replace.num_lesson,
-                        }
-                    )
-
-                output_json = {
-                    "group": group,
-                    "date": date_replacemetns,
-                    "replacemetns": list_replacemetns,
+        logger.debug("Формируем json ответ")
+        for replace in results:
+            date_replacemetns = replace.date
+            list_replacemetns.append(
+                {
+                    "id": replace.id,
+                    "item": replace.item,
+                    "teacher": replace.teacher,
+                    "cabinet": replace.cabinet,
+                    "day": schemas.Num_to_day[replace.num_day],
+                    "num_lesson": replace.num_lesson,
                 }
-                return output_json
+            )
+
+        output_json = {
+            "group": group,
+            "date": date_replacemetns,
+            "replacemetns": list_replacemetns,
+        }
+
+        logger.debug("Возвращаем json ответ")
+        return output_json
     except Exception:
-        logger.exception(f"ERROR getting replacemetns from database")
+        logger.exception(f"Произошла ошибка при получении замен")
         return False
 
      
 
 
-async def remove_replace(replace: schemas.Replace_remove):
-    logger.debug(f"start remove remove")
-
+async def remove_replace(
+        payload: schemas.Replace_remove,
+        session: SessionDep # Сессия базы данных
+) -> bool | str:
     try:
-        # Open session to database
-        async with await db.get_session() as session:
-            async with session.begin():
-
-                query_select = (
-                    db.select(db.table.Replacements)
-                   .filter_by(
-                              group=replace.group,
-                              num_day=schemas.Day_num[replace.day],
-                              num_lesson=replace.num_lesson
-                        )
+        logger.debug("Формируем запрос в бд")
+        query_select = (
+            db.select(db.table.Replacements)
+            .filter_by(
+                        group=payload.group,
+                        num_day=schemas.Day_to_num[payload.day],
+                        num_lesson=payload.num_lesson
                 )
+        )
+        logger.debug("Выполняем запрос в бд")
+        result = await session.execute(query_select)
 
-                result = await session.execute(query_select)
-                replace_to_delete = result.scalar_one_or_none()
+        logger.debug("Получаем данные")
+        replace_to_delete = result.scalar_one_or_none()
 
-                if replace_to_delete:
-                    query = (
-                        db.delete(db.table.Replacements)
-                       .filter(
-                                db.table.Replacements.group == replace.group,
-                                db.table.Replacements.num_day == schemas.Day_num[replace.day],
-                                db.table.Replacements.num_lesson == replace.num_lesson,
-                        )
-                    )
+        if replace_to_delete:
+            logger.debug("Замена найдена. Формируем запрос на удаление замены")
+            query = (
+                db.delete(db.table.Replacements)
+                .filter(
+                        db.table.Replacements.group == payload.group,
+                        db.table.Replacements.num_day == schemas.Day_to_num[payload.day],
+                        db.table.Replacements.num_lesson == payload.num_lesson,
+                )
+            )
 
-                    await session.execute(query)
-                    return True
-                else:
-                    return "not found"
+            logger.debug("Выполняем запрос в бд")
+            await session.execute(query)
+            await session.commit()
+
+            logger.debug("Замена успешно удалена. Возвращаем True")                    
+            return True
+        else:
+            logger.debug("Замена не найдена. Возвращаем not found")
+            return "not found"
 
     except Exception:
-        logger.exception(f"ERROR remove replace from database")
+        logger.exception(f"При удалении произошла ошибка")
         return False

@@ -1,12 +1,6 @@
-import json
 from ..services import database as db
 from app.core.dependencies import SessionDep
 from loguru import logger
-import asyncio
-from . import time_utils
-from icecream import ic
-import pydantic
-from app import schemas
 
 async def all_cabinets(session: SessionDep) -> dict | bool:
     try:

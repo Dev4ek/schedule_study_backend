@@ -13,7 +13,7 @@ async def check_lessons(group: str) -> str | None:
         logger.debug("Подключаемся к redis")
         redis = Redis.from_url(os.getenv('redis_url'),  decode_responses=True)
         
-        logger.debug(f"Получаем инфу по ключу. Ключ: {lessons_key}")
+        logger.debug(f"Получаем информацию по ключу. Ключ: {lessons_key}")
         lessons = await redis.get(name=lessons_key)
 
         logger.debug("Закрываем соединение с redis")

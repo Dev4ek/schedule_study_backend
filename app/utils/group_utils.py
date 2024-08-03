@@ -1,13 +1,5 @@
-import json
 from ..services import database as db
 from loguru import logger
-from aio_pika.abc import AbstractIncomingMessage
-import asyncio
-from . import time_utils
-from .. import schemas
-from icecream import ic
-import pydantic
-from app import schemas
 from app.core.dependencies import SessionDep
 
 
