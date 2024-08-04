@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query, Body
+from fastapi import APIRouter, Depends, Path, Query, Body
 from fastapi.responses import JSONResponse
 from ..core import dependencies
 from ..services import redis
@@ -8,7 +8,6 @@ from app.core.dependencies import SessionDep
 
 
 router_lesson = APIRouter(prefix="/lesson", tags=["Расписание"])
-
 
 @router_lesson.get(
         path="/app", 
@@ -108,6 +107,29 @@ async def get_lessons(
         logger.error(f"Ошибка при получении расписания. Отдаём ответ. Группа: {group}")
         return JSONResponse(content={"message": "Неизвестная ошибка при получении расписания"}, status_code=500)
         
+
+
+@router_lesson.get(
+        path="/teacher/{teacher}",
+        description="Посмотреть пары для учителя",
+)
+async def get_lesson_for_teacher(
+    session: SessionDep, # Сессия базы данных
+    teacher: str = Path(..., description="ФИО учителя", example="Демиденко Наталья Ильинична")
+) -> JSONResponse:
+    logger.info(f"Запрос на расписание для учителя. Учитель {teacher}")
+
+    getting = await utils.get_lessons_teacher(teacher, session)
+
+    if getting:
+        logger.info(f"Отдаём ответ. Список пар учителю")
+        return JSONResponse(content=getting, status_code=200)
+    
+    else:
+        logger.error(f"Отдаём ответ произошла ошибка при получении пар учителю")
+        return JSONResponse(content={"message": "Неизвестная ошибка при получении пар"}, status_code=500)
+
+
 
 
 @router_lesson.put(

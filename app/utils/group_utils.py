@@ -9,19 +9,25 @@ async def all_groups(
     try:
         logger.debug("Формируем запрос на получение всех групп")
         query = (
-            db.select(db.table.Groups.group)
+            db.select(db.table.Groups.id, db.table.Groups.group)
+            .order_by(db.table.Groups.group)
         )
 
         logger.debug("Выполняем запрос")
         result = await session.execute(query)
 
         logger.debug("Получаем результат")
-        groups = result.scalars().all()
+        groups_data = result.all()
+
+        groups = []
+        for gorup in groups_data:
+            groups.append({
+                "id": gorup.id,
+                "group": gorup.group
+            })
 
         logger.debug("Формируем json список групп для ответа")
-        return {
-            "groups": groups
-        }
+        return groups
 
     except Exception:
         logger.exception(f"Произошла ошибка при получении всех групп")

@@ -5,9 +5,6 @@ from fastapi.responses import JSONResponse
 from app import routers
 from . import config
 from loguru import logger
-from fastapi_cache import FastAPICache
-from fastapi_cache.backends.redis import RedisBackend
-from fastapi_cache.decorator import cache
 from contextlib import asynccontextmanager
 from collections.abc import AsyncIterator
 from redis import asyncio as aioredis

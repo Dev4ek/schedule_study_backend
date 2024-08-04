@@ -14,14 +14,17 @@ router_group = APIRouter(prefix="/group", tags=["Группы"])
                 "description": "Получен список",
                 "content": {
                     "application/json": {
-                        "example": {
-                            "groups": [
-                                "Исп-232",
-                                "Тод-211",
-                                "Зчс-222",
-                                "..."
+                        "example": [
+                            {
+                                "id": 2,
+                                "group": "Исп-232"
+                            },
+                            {
+                                "id": 3,
+                                "group": "Тод-211"
+
+                            }
                             ]
-                        }
                     }
                 },
             },
@@ -36,7 +39,6 @@ router_group = APIRouter(prefix="/group", tags=["Группы"])
                     }
                 },
             },
-
         }
 )
 async def get_groups(
@@ -47,7 +49,7 @@ async def get_groups(
     getting = await utils.all_groups(session)
 
     if getting:
-        logger.error("Отдаём ответ сформированный список")
+        logger.info("Отдаём ответ сформированный список")
         return JSONResponse(content=getting, status_code=200)
     else:
         logger.error("Неизвестная ошибка при получении списка всех групп. Отдаём ответ")

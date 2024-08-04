@@ -63,3 +63,13 @@ class Cabinets(Base):
 
     id: Mapped[Integer] = mapped_column(Integer, primary_key=True, autoincrement=True)
     cabinet: Mapped[String] = mapped_column(String(50))
+    
+    
+class Accounts(Base):
+    __tablename__ = 'account'
+    
+    id: Mapped[Integer] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    login: Mapped[String] = mapped_column(String(50), unique=True)
+    password: Mapped[str] = mapped_column(String(255))
+    
+    

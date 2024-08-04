@@ -16,14 +16,16 @@ router_cabinet = APIRouter(prefix="/cabinet", tags=["Кабинеты"])
                 "description": "Получен список",
                 "content": {
                     "application/json": {
-                        "example": {
-                            "cabinets": [
-                                "405-1",
-                                "36-2",
-                                "86-2",
-                                "..."
+                        "example": [
+                            {
+                                "id": 1,
+                                "cabinet": "405-1"
+                            },
+                            {
+                                "id": 2,
+                                "cabinet": "36-2"
+                            }
                             ]
-                        }
                     }
                 },
             },

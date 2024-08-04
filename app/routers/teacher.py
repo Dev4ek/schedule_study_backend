@@ -1,10 +1,39 @@
-from fastapi import APIRouter, Depends, Query, Body
+from fastapi import APIRouter, Depends, Path, Query, Body
 from fastapi.responses import JSONResponse
 from .. import schemas, utils
 from loguru import logger
 from app.core.dependencies import SessionDep
 
 router_teacher = APIRouter(prefix="/teacher", tags=["Учителя"])
+
+
+# @router_teacher.get(
+#         path="/lessons",
+#         description="Расписание для учителя"
+# )
+# async def get_teachers(
+#     session: SessionDep,
+#     teacher: str = Query(..., description="ФИО учителя", example="Демиденко Наталья Ильинична"),
+# ) -> JSONResponse:
+#     logger.info(f"Запрос на расписание для учителя. Учитель {teacher}")
+
+#     getting: str | bool = await utils.all_teachers(session)
+
+#     if getting:
+#         logger.info("Отдаём ответ список учителей")
+#         return JSONResponse(content=getting, status_code=200)
+    
+#     else:
+#         logger.error("Ошибка при получении списка. Отдаём ответ")
+#         return JSONResponse(content={"message": "Неизвестная ошибка при получении списка учителей"}, status_code=500)
+    
+
+
+
+
+
+
+
 
 @router_teacher.get(
         path="/all",
@@ -15,14 +44,16 @@ router_teacher = APIRouter(prefix="/teacher", tags=["Учителя"])
                 "content": {
                     "application/json": {
                         "example": 
-                        {
-                            "teachers": [
-                                "Демиденко Наталья Ильинична",
-                                "Вартабедьян Виктория Борисовна"
-                                "..."
+                        [
+                            {
+                                "id": 1,
+                                "teacher": "Демиденко Наталья Ильинична"
+                            },
+                            {
+                                "id": 3,
+                                "teacher": "Вартабедьян Виктория Борисовна"
+                            }
                             ]
-                        }
-                          
                     }
                 },
             },
@@ -57,7 +88,7 @@ async def get_teachers(
 
 
 @router_teacher.put(
-        path="/put",
+        path="/put/{teacher}",
         description="Добавить учителя",
         responses={
             200: {
@@ -99,11 +130,11 @@ async def get_teachers(
 )
 async def put_teacher(
     session: SessionDep,
-    full_name: str = Query(..., description="ФИО учителя", example="Демиденко Наталья Ильинична")
+    teacher: str = Path(..., description="ФИО учителя", example="Демиденко Наталья Ильинична")
 ) -> JSONResponse:
-    logger.info(f"Запрос на добавление учителя {full_name}")
+    logger.info(f"Запрос на добавление учителя {teacher}")
 
-    adding: str | bool = await utils.put_teacher(full_name, session)
+    adding: str | bool = await utils.put_teacher(teacher, session)
 
     if adding == "exists":
         logger.info("Учитель с таким ФИО уже существует. Отдаём ответ")
@@ -117,7 +148,7 @@ async def put_teacher(
 
 
 @router_teacher.delete(
-        path="/remove",
+        path="/remove/{teacher}",
         description="Удалить учителя",
         responses={
             200: {
@@ -159,11 +190,11 @@ async def put_teacher(
 )
 async def remove_teacher(
     session: SessionDep,
-    full_name: str = Query(..., description="ФИО учителя", example="Демиденко Наталья Ильинична")
+    teacher: str = Path(..., description="ФИО учителя", example="Демиденко Наталья Ильинична")
 ) -> JSONResponse:
-    logger.info(f"Запрос на удаление учителя из бд {full_name}")
+    logger.info(f"Запрос на удаление учителя из бд {teacher}")
 
-    removing: bool | str = await utils.remove_teacher(full_name, session)
+    removing: bool | str = await utils.remove_teacher(teacher, session)
 
     if removing == "not found":
         logger.info("Учитель с таким ФИО не найден. Вовзвращаем ответ")

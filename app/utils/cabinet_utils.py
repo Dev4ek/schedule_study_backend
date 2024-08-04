@@ -6,7 +6,7 @@ async def all_cabinets(session: SessionDep) -> dict | bool:
     try:
         logger.debug("Формирование запроса для бд")
         query = (
-            db.select(db.table.Cabinets.cabinet)
+            db.select(db.table.Cabinets.id, db.table.Cabinets.cabinet)
             .order_by(db.table.Cabinets.cabinet.asc())
         )
 
@@ -14,12 +14,18 @@ async def all_cabinets(session: SessionDep) -> dict | bool:
         result = await session.execute(query)
 
         logger.debug("Получаем результат из бд")
-        cabients = result.scalars().all()
+        cabients_data = result.all()
+
+        cabients = []
+        for cabinet in cabients_data:
+            cabients.append({
+                "id": cabinet.id,
+                "cabinet": cabinet.cabinet
+                 })
+
         
         logger.debug("Формируем json список кабинетов для ответа")
-        return {
-            "cabients": cabients
-        }
+        return cabients
 
     except Exception:
         logger.exception(f"Произошла ошибка при получении списка кабинето")

@@ -9,19 +9,25 @@ async def all_teachers(
     try:
         logger.debug("Формируем запрос в бд")
         query = (
-            db.select(db.table.Teachers.full_name)
+            db.select(db.table.Teachers.id, db.table.Teachers.full_name)
         )
 
         logger.debug("Выполняем запрос в бд")
         result = await session.execute(query)
 
         logger.debug("Получаем данные из бд")
-        teachers = result.scalars().all()
+        teachers_data = result.all()
         
         logger.debug("Вовзращаем json учителей")
-        return {
-            "teachers": teachers
-        }
+
+        teachers = []
+        for teacher in teachers_data:
+            teachers.append({
+                "id": teacher.id,
+                "teacher": teacher.full_name
+            })
+
+        return teachers
     except Exception:
         logger.exception(f"Произошла ошибка при получении списка учителей")
         return False
@@ -29,7 +35,7 @@ async def all_teachers(
 
 
 async def put_teacher(
-        full_name: str, # example: "Демиденко Наталья Ильинична"
+        teacher: str, # example: "Демиденко Наталья Ильинична"
         session: SessionDep
 ) -> bool | str:
     
@@ -37,7 +43,7 @@ async def put_teacher(
         logger.debug("Формируем запрос на проверку наличия учителя в бд")        
         query_check = (
             db.select(db.table.Teachers.full_name)
-            .where(db.table.Teachers.full_name == full_name)
+            .where(db.table.Teachers.full_name == teacher)
         )
         logger.debug("Делаем запрос в бд")
         result = await session.execute(query_check)
@@ -53,7 +59,7 @@ async def put_teacher(
             logger.debug("Учителя не существует. Формируем запрос на добавление учителя в бд")
             query = (
                 db.insert(db.table.Teachers)
-                .values(full_name=full_name, short_name=full_name)
+                .values(full_name=teacher, short_name=teacher)
             )
 
         logger.debug("Делаем запрос в бд")
@@ -71,14 +77,14 @@ async def put_teacher(
 
     
 async def remove_teacher(
-        full_name: str, # example: "Демиденко Наталья Ильинична"
+        teacher: str, # example: "Демиденко Наталья Ильинична"
         session: SessionDep
 ) -> bool | str:
     try:
         logger.debug("Формируем запрос в бд на проверку учителя в бд")
         query_check = (
             db.select(db.table.Teachers.full_name)
-            .where(db.table.Teachers.full_name == full_name)
+            .where(db.table.Teachers.full_name == teacher)
         )
         logger.debug("Выполняем запрос в бд")
         result = await session.execute(query_check)
@@ -90,7 +96,7 @@ async def remove_teacher(
             logger.debug("Учитель есть в бд. Формируем запрос на удаление")
             query = (
                 db.delete(db.table.Teachers)
-                .where(db.table.Teachers.full_name == full_name)
+                .where(db.table.Teachers.full_name == teacher)
             )
 
             logger.debug("Выполняем запрос в бд")

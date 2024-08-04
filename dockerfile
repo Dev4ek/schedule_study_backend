@@ -13,5 +13,5 @@ RUN pip3 install -r requirements.txt
 
 EXPOSE 8082
 
-CMD ["dockerize", "-wait", "tcp://postgres:5432", "-wait", "tcp://redis:6379", "-wait", "tcp://rabbitmq:5672", "-timeout", "35s", "python3", "run.py"]
+CMD ["dockerize", "-wait", "tcp://postgres:5432", "-wait", "tcp://redis:6379", "-timeout", "35s", "python3", "run.py"]
 
