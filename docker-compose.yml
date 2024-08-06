@@ -1,18 +1,18 @@
 services:
-  api:
-    build: .
-    container_name: fastapi
-    environment:
-      - database_url=postgresql+asyncpg://postgres:123456@postgres/schedule
-      - sync_database_url=postgresql+psycopg://postgres:123456@postgres/schedule
-      - redis_url=redis://redis:6379
-    ports:
-      - "8082:8082"
-    depends_on:
-      - postgres
-      - redis
-    networks:
-      - general
+  # api:
+  #   build: .
+  #   container_name: fastapi
+  #   environment:
+  #     - database_url=postgresql+asyncpg://postgres:123456@postgres/schedule
+  #     - sync_database_url=postgresql+psycopg://postgres:123456@postgres/schedule
+  #     - redis_url=redis://redis:6379
+  #   ports:
+  #     - "8082:8082"
+  #   depends_on:
+  #     - postgres
+  #     - redis
+  #   networks:
+  #     - general
 
   postgres:
     image: postgres:16-alpine
@@ -21,6 +21,8 @@ services:
       - POSTGRES_PASSWORD=123456
       - POSTGRES_USER=postgres
       - POSTGRES_DB=schedule
+    ports:
+      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:

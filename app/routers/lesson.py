@@ -37,7 +37,11 @@ router_lesson = APIRouter(prefix="/lesson", tags=["Расписание"])
                                             "status": False,
                                             "time": "",
                                             "percentage": 0,
-                                            "replace": None
+                                            "replace": {
+                                                "item": "Английский язык",
+                                                "teacher": "Демиденко Наталья Ильинична",
+                                                "cabinet": "405-1"
+                                            }
                                         }
                                     ]
                                 },
