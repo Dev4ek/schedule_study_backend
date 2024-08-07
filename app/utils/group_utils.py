@@ -20,10 +20,10 @@ async def all_groups(
         groups_data = result.all()
 
         groups = []
-        for gorup in groups_data:
+        for group in groups_data:
             groups.append({
-                "id": gorup.id,
-                "group": gorup.group
+                "group_id": group.id,
+                "group": group.group
             })
 
         logger.debug("Формируем json список групп для ответа")

@@ -8,7 +8,7 @@ router_group = APIRouter(prefix="/group", tags=["Группы"])
 
 @router_group.get(
         path="/all",
-        description="Список всех групп",
+        summary="Список всех групп",
         responses={
             200: {
                 "description": "Получен список",
@@ -16,11 +16,11 @@ router_group = APIRouter(prefix="/group", tags=["Группы"])
                     "application/json": {
                         "example": [
                             {
-                                "id": 2,
+                                "group_id": 2,
                                 "group": "Исп-232"
                             },
                             {
-                                "id": 3,
+                                "group_id": 3,
                                 "group": "Тод-211"
 
                             }
@@ -58,7 +58,7 @@ async def get_groups(
 
 @router_group.put(
         path="/put/{group}",
-        description="Добавить группу",
+        summary="Добавить группу",
         responses={
             200: {
                 "description": "Успешное добавление",
@@ -113,12 +113,11 @@ async def put_group(
     else:
         logger.error("Неизвестная ошибка при добавлении группы. Отдаём ответ")
         return JSONResponse(content={"message": "Неизвестная ошибка при добавлении группы"}, status_code=500)
-    
 
 
 @router_group.delete(
         path="/remove/{group}",
-        description="Удалить группу",
+        summary="Удалить группу",
         responses={
             200: {
                 "description": "Успешное удаление",

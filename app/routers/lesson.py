@@ -6,139 +6,38 @@ from .. import schemas, utils
 from loguru import logger
 from app.core.dependencies import SessionDep
 
-
 router_lesson = APIRouter(prefix="/lesson", tags=["Расписание"])
 
 @router_lesson.get(
-        path="/app", 
-        dependencies=[Depends(dependencies.verify_version)],
-        description="Посмотреть все расписание для группы (ДЛЯ ПРИЛОЖЕНИЯ)",
-        response_model=schemas.Schedule_output,
-
-        responses={
-            200: {
-                "description": "Получен список",
-                "content": {
-                    "application/json": {
-                        "example": 
-                            [
-                                {
-                                    "day": "Понедельник",
-                                    "date": "5 Августа",
-                                    "lessons": [
-                                        {
-                                            "item": "Классный час",
-                                            "cabinet": "405-1",
-                                            "teacher": "Демиденко Н.И.",
-                                            "event_time": [
-                                                "8:30 - 9:15",
-                                                "9:15 - 10:00"
-                                            ],
-                                            "status": False,
-                                            "time": "",
-                                            "percentage": 0,
-                                            "replace": {
-                                                "item": "Английский язык",
-                                                "teacher": "Демиденко Наталья Ильинична",
-                                                "cabinet": "405-1"
-                                            }
-                                        }
-                                    ]
-                                },
-                                {
-                                    "day": "Четверг",
-                                    "date": "8 Августа",
-                                    "lessons": [
-                                        {
-                                            "item": "Русский язык",
-                                            "cabinet": "36-2",
-                                            "teacher": "Вартабедьян В.Б.",
-                                            "event_time": [
-                                                "8:30 - 9:15",
-                                                "9:15 - 10:00"
-                                            ],
-                                            "status": False,
-                                            "time": "",
-                                            "percentage": 0,
-                                            "replace": None
-                                        }
-                                    ]
-                                }
-                            ]
-                        
-                    }
-                },
-            },
-
-            500: {
-                "description": "Ошибка при получении расписания",
-                "content": {
-                    "application/json": {
-                        "example": {
-                            "message": "Неизвестная ошибка при получении расписания"
-                        }
-                    }
-                },
-            },
-
-        }
+        path="/{lesson_id}",
+        summary="Посмотреть информацию о паре по айди пары",
+        response_model=schemas.Info_lesson_output
 )
-async def get_lessons(
+async def get_lesson_by_id(
     session: SessionDep, # Сессия базы данных
-    group: str = Query(..., description="Группа", example="Исп-232"),
+    lesson_id: int = Path(..., description="Айди пары", example=11)
 ) -> JSONResponse: 
-    logger.info(f"Запрос на получения расписания для группы. Группа: {group}")
+    logger.info(f"Запрос на получение информации о паре по айди. Айди {lesson_id}")
 
-    cache_schedule: bool | schemas.Schedule_output = await redis.check_lessons(group)
+    getting = await utils.get_lesson_by_id(lesson_id, session)
 
-    if cache_schedule:
-        logger.debug(f"Расписание есть в кеше redis")
-
-        logger.info(f"Вовзращаем сформированнное json расписание для группы. Группа: {group}")
-        return JSONResponse(content=cache_schedule, status_code=200)
-
-    logger.debug(f"Расписание не найдено в кеше redis. Запускем функцию формирования расписания")
-    schedule: bool | schemas.Schedule_output = await utils.get_lessons(group, session)
-
-    if schedule:
-        logger.debug("Устанавливаем сформированное расписание в кеш redis")
-        await redis.set_lesssons(group, schedule)
-
-        logger.debug("Отдаём ответ сформированное расписание")
-        return JSONResponse(content=schedule, status_code=200)
-    
-    else:
-        logger.error(f"Ошибка при получении расписания. Отдаём ответ. Группа: {group}")
-        return JSONResponse(content={"message": "Неизвестная ошибка при получении расписания"}, status_code=500)
+    if getting == "not found":
+        logger.info(f"Отдаём ответ пара не найдена")
+        return JSONResponse(content="Пара не найдена", status_code=200)
         
-
-
-@router_lesson.get(
-        path="/teacher/{teacher}",
-        description="Посмотреть пары для учителя",
-)
-async def get_lesson_for_teacher(
-    session: SessionDep, # Сессия базы данных
-    teacher: str = Path(..., description="ФИО учителя", example="Демиденко Наталья Ильинична")
-) -> JSONResponse:
-    logger.info(f"Запрос на расписание для учителя. Учитель {teacher}")
-
-    getting = await utils.get_lessons_teacher(teacher, session)
-
-    if getting:
-        logger.info(f"Отдаём ответ. Список пар учителю")
+    elif getting:
+        logger.info(f"Отдаём ответ информацию о паре")
         return JSONResponse(content=getting, status_code=200)
     
     else:
-        logger.error(f"Отдаём ответ произошла ошибка при получении пар учителю")
-        return JSONResponse(content={"message": "Неизвестная ошибка при получении пар"}, status_code=500)
-
+        logger.error(f"Неизвестная ошибка отдаём ответ")
+        return JSONResponse(content={"message": "Неизвестная ошибка получении информации"}, status_code=500)
 
 
 
 @router_lesson.put(
         path="/put",
-        description="Установить пару для группы",
+        summary="Установить пару для группы",
         responses={
             200: {
                 "description": "Успешная установка",
@@ -167,7 +66,7 @@ async def get_lesson_for_teacher(
 )
 async def put_lesson(
     session: SessionDep, # Сессия базы данных
-    payload: schemas.Lesson_input = Body(..., description="Пара для группы в формате JSON",
+    payload: schemas.Lesson_input = Body(..., description="Данные для добавления пары",
     example={
         "group": "Исп-232",
         "day": "Понедельник",
@@ -193,10 +92,9 @@ async def put_lesson(
 
 
 
-
 @router_lesson.delete(
         path="/remove",
-        description="Удалить пару",
+        summary="Удалить пару",
         responses={
             200: {
                 "description": "Успешное удаление",
@@ -220,12 +118,11 @@ async def put_lesson(
                     }
                 },
             },
-
         }
 )
 async def remove_lesson(
     session: SessionDep, # Сессия базы данных
-    payload: schemas.Remove_lesson = Body(..., description="Параметры для удаления пары",
+    payload: schemas.Remove_lesson = Body(..., description="Данные для удаления пары",
     example={
         "group": "Исп-232",
         "day": "Понедельник",

@@ -18,6 +18,7 @@ async def get_lessons(
         logger.debug("Формируем запросы на получение данных")
         query_lessons = (
             db.select(
+                db.table.Lessons.id, 
                 db.table.Lessons.item, 
                 db.table.Lessons.num_day, 
                 db.table.Lessons.num_lesson, 
@@ -67,11 +68,11 @@ async def get_lessons(
 
         logger.debug("Обрабатываем замены и формируем словарь")
         replacements_key = {
-
             (i.num_day, i.num_lesson): {
+                "replace_id": i.id, 
                 "item": i.item, 
-                "teacher": i.teacher, 
-                "cabinet": i.cabinet
+                "cabinet": i.cabinet,
+                "teacher": i.teacher 
             }
             for i in replacements_data
         }
@@ -104,20 +105,22 @@ async def get_lessons(
                 event_time = time_key.get((lesson.num_day, lesson.num_lesson), ["ㅤ"])
                 previous_event_time = time_key.get((lesson.num_day, lesson.num_lesson - 1))
                 status, time, percentage = (await time_utils.check_time_lessons(event_time, previous_event_time)
-                                            if lesson.num_day == num_day else (False, "", 0))
+                                            if lesson.num_day == num_day else ("not active", "", 0))
 
                 lessons_in_schedule.append({
+                    "lesson_id": lesson.id,
                     "item": lesson.item,
                     "cabinet": lesson.cabinet,
                     "teacher": lesson.teacher,
                     "event_time": event_time,
                     "num_lesson": lesson.num_lesson,
-                    "status": status if status_time else None,
+                    "status": status if status_time else "not active",
                     "time": time,
                     "percentage": percentage,
                     "replace": replacements_key.get((lesson.num_day, lesson.num_lesson))
                 })
-                if status:
+                
+                if status != "not active":
                     status_time = False
 
             final_schedule.append({
@@ -127,8 +130,13 @@ async def get_lessons(
             })
 
 
+        logger.debug("Формируем pydantic model")
+        schedule_info_model = schemas.Schedule_output(
+            **schedule_info
+        ).model_dump()
+
         logger.debug("Расписание успешно сформированно. Вовзаращем его")
-        return schedule_info
+        return schedule_info_model
 
     except Exception:
         logger.exception("Ошибка при получении расписания из базы данных")
@@ -138,7 +146,7 @@ async def get_lessons(
 async def get_lessons_teacher(
         teacher: str, # teacher example "Демиденко Наталья Ильинична"
         session: SessionDep, # Сессия базы данных
-):
+) -> schemas.Schedule_tacher_output | bool:
     try:
         logger.debug("Формируем запрос на получение пар для учителя")
 
@@ -148,6 +156,7 @@ async def get_lessons_teacher(
         logger.debug("Формируем запросы на получение данных")
         query_lessons = (
             db.select(
+                db.table.Lessons.id, 
                 db.table.Lessons.item, 
                 db.table.Lessons.group, 
                 db.table.Lessons.num_day, 
@@ -169,7 +178,8 @@ async def get_lessons_teacher(
         )
 
         query_replacements = (
-            db.select(db.table.Replacements.num_day,
+            db.select(db.table.Replacements.id,
+                      db.table.Replacements.num_day,
                       db.table.Replacements.num_lesson,
                       db.table.Replacements.item,
                       db.table.Replacements.teacher,
@@ -205,6 +215,7 @@ async def get_lessons_teacher(
         logger.debug("Обрабатываем замены и формируем словарь")
         replacements_key = {
             (i.num_day, i.num_lesson): {
+                "replace_id": i.id,
                 "item": i.item, 
                 "group": i.group, 
                 "cabinet": i.cabinet
@@ -242,15 +253,16 @@ async def get_lessons_teacher(
                 event_time = time_key.get((lesson.num_day, lesson.num_lesson), ["ㅤ"])
                 previous_event_time = time_key.get((lesson.num_day, lesson.num_lesson - 1))
                 status, time, percentage = (await time_utils.check_time_lessons(event_time, previous_event_time)
-                                            if lesson.num_day == num_day else (False, "", 0))
+                                            if lesson.num_day == num_day else ("not active", "", 0))
 
                 lessons_in_schedule.append({
+                    "lesson_id": lesson.id,
                     "item": lesson.item,
                     "cabinet": lesson.cabinet,
                     "group": lesson.group,
                     "event_time": event_time,
                     "num_lesson": lesson.num_lesson,
-                    "status": status if status_time else None,
+                    "status": status if status_time else "not active",
                     "time": time,
                     "percentage": percentage,
                     "replace": replacements_key.get((lesson.num_day, lesson.num_lesson))
@@ -263,12 +275,16 @@ async def get_lessons_teacher(
                 "date": await time_utils.get_date_by_day(day),
                 "lessons": lessons_in_schedule
             })
-
+            
+        logger.debug("Формирование модели pydanitc")
+        
+        schedule_info_model = schemas.Schedule_tacher_output(
+            **schedule_info
+        ).model_dump()
+            
 
         logger.debug("Расписание успешно сформированно. Вовзаращем его")
-        return schedule_info
-
-
+        return schedule_info_model
 
 
     except Exception:
@@ -395,3 +411,72 @@ async def remove_lesson(
     except Exception:
         logger.exception(f"Произошла ошибка при удалении пары")
         return False
+    
+    
+async def get_lesson_by_id(
+    lesson_id: int,
+    session: SessionDep, # Сессия базы данных
+):
+    try:
+        logger.debug(f"Выполняем запрос в бд просмотр информации о паре")
+
+        result = await session.execute(
+            db.select(db.table.Lessons.__table__)
+            .filter_by(
+                id=lesson_id,
+            ))
+
+        data_lesson = result.one_or_none()
+
+        if data_lesson:
+            logger.debug("Пара найдена. Делаем запрос чтобы узнать время проведения пары")
+            
+            result_time = await session.execute(
+                db.select(db.table.Times.time)
+                .filter_by(
+                    num_day=data_lesson.num_day,
+                    num_lesson=data_lesson.num_lesson,
+                ))
+            
+            logger.debug("Получаем данные о времени")
+            data_time = result_time.scalar_one_or_none()
+            
+            logger.debug("Делаем запрос в бд для просмотра замен на пару")
+            result_replacements = await session.execute(
+                db.select(db.table.Replacements.__table__)
+                .filter_by(
+                    num_day=data_lesson.num_day,
+                    num_lesson=data_lesson.num_lesson,
+                    group=data_lesson.group
+                )
+            )
+            
+            replacement_data = result_replacements.first()
+            
+            form_replace = {
+                    "replace_id": replacement_data.id,
+                    "item": replacement_data.item,
+                    "cabinet": replacement_data.cabinet,
+                    "teacher": replacement_data.teacher,
+                } if replacement_data else None
+            
+            
+            logger.debug("Формируем модель pydantic и возвращаем её")
+            return schemas.Info_lesson_output(
+                    lesson_id=data_lesson.id,
+                    item=data_lesson.item,
+                    teacher=data_lesson.teacher,
+                    cabinet=data_lesson.cabinet,
+                    group=data_lesson.group,
+                    num_lesson=data_lesson.num_lesson,
+                    day=schemas.Num_to_day[data_lesson.num_day],
+                    event_time=data_time.split(", ") if data_time else ["ㅤ"],
+                    replace=form_replace
+                ).model_dump()
+        else:
+            logger.debug("Пара не найдена. Возвращаем not found")
+            return "not found"
+    except Exception:
+        logger.exception(f"Произошла ошибка при удалении пары")
+        return False
+    

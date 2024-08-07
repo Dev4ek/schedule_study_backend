@@ -19,7 +19,7 @@ async def all_cabinets(session: SessionDep) -> dict | bool:
         cabients = []
         for cabinet in cabients_data:
             cabients.append({
-                "id": cabinet.id,
+                "cabinet_id": cabinet.id,
                 "cabinet": cabinet.cabinet
                  })
 

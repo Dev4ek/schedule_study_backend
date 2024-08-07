@@ -98,31 +98,87 @@ async def replacemetns_group(
         logger.debug("Получаем данные")
         results = result.scalars().all()
 
-        date_replacemetns = None
-        list_replacemetns = []
+        list_replacements = {}
 
-        logger.debug("Формируем json ответ")
         for replace in results:
-            date_replacemetns = replace.date
-            list_replacemetns.append(
-                {
-                    "id": replace.id,
-                    "item": replace.item,
-                    "teacher": replace.teacher,
-                    "cabinet": replace.cabinet,
-                    "day": schemas.Num_to_day[replace.num_day],
-                    "num_lesson": replace.num_lesson,
-                }
-            )
+            day_key = f"day_{replace.num_day}"
+            lesson_key = f"lesson_{replace.num_lesson}"
+            
+            if day_key not in list_replacements:
+                list_replacements[day_key] = {"date": replace.date}
+                
+            if lesson_key not in list_replacements[day_key]:
+                list_replacements[day_key][lesson_key] = {}
+
+            list_replacements[day_key][lesson_key].update({
+                "replace_id": replace.id,
+                "item": replace.item,
+                "teacher": replace.teacher,
+                "cabinet": replace.cabinet,
+            })
 
         output_json = {
             "group": group,
-            "date": date_replacemetns,
-            "replacemetns": list_replacemetns,
+            "replacements": list_replacements,
         }
 
         logger.debug("Возвращаем json ответ")
         return output_json
+    except Exception:
+        logger.exception(f"Произошла ошибка при получении замен")
+        return False
+
+
+
+async def all_replacemetns(
+        session: SessionDep # Сессия базы данных
+) -> schemas.Replace_output | bool:
+    try:
+        logger.debug("Формируем запрос в бд")
+
+        query_select = (
+            db.select(db.table.Replacements)
+            .order_by(db.table.Replacements.group, db.table.Replacements.num_day, db.table.Replacements.num_lesson)
+        )
+
+        logger.debug("Выполняем запрос в бд")
+        result = await session.execute(query_select)
+
+        logger.debug("Получаем данные")
+        results = result.all()
+
+        date_replacemetns = None
+        list_data_replacemetns = {}
+        list_replacemetns = []
+
+        logger.debug("Формируем json ответ")
+
+        for replace in results:
+            for data_repalace in replace:
+                date = data_repalace.date
+                group = data_repalace.group
+                
+                output_json = {
+                    "group": group,
+                    "date": date_replacemetns,
+                    "replacemetns": list_replacemetns
+                }
+                    
+                for data_replace_item in replace:
+                    list_replacemetns.append({
+                            "id": data_replace_item.id,
+                            "item": data_replace_item.item,
+                            "teacher": data_replace_item.teacher,
+                            "cabinet": data_replace_item.cabinet,
+                            "day": schemas.Num_to_day[data_replace_item.num_day],
+                            "num_lesson": data_replace_item.num_lesson,
+                        })
+
+
+
+        # logger.debug("Возвращаем json ответ")
+        # return output_json
+        return True
     except Exception:
         logger.exception(f"Произошла ошибка при получении замен")
         return False
@@ -173,4 +229,25 @@ async def remove_replace(
 
     except Exception:
         logger.exception(f"При удалении произошла ошибка")
+        return False
+    
+    
+async def remove_all_replacements(
+    session: SessionDep
+) -> bool:
+    try:
+        logger.debug("Формируем запрос в бд")
+        query_delete = (
+            db.delete(db.table.Replacements)
+        )
+        
+        logger.debug("Выполняем запрос в бд")
+        await session.execute(query_delete)
+        await session.commit()
+        
+        logger.debug("Все замены успешно удалены. Возвращаем True")
+        return True
+    
+    except Exception:
+        logger.exception(f"При удалении всех замен произошла ошибка")
         return False

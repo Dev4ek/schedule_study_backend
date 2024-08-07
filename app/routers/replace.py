@@ -7,9 +7,33 @@ from app.core.dependencies import SessionDep
 
 router_replace = APIRouter(prefix="/replace", tags=["Замены"])
 
+
+
+
+@router_replace.get(
+        path="/all",
+        summary="Список всех замен для групп",
+)
+async def get_all_replacements(
+    session: SessionDep,
+) -> JSONResponse:
+    logger.info("Запрос на получение всех замен")
+
+    getting: bool | schemas.Replace_output = await utils.all_replacemetns(session)
+
+    if getting:
+        logger.info("Отдаём ответ список замен")
+        return JSONResponse(content=getting, status_code=200)
+    else:
+        logger.error("Отдаём ответ. Ошибка при получении замен")
+        return JSONResponse(content={"message": "Неизвестная ошибка при получении списка замен"}, status_code=500)
+
+
+
+
 @router_replace.get(
         path="/{group}",
-        description="Список всех замен на группу",
+        summary="Список всех замен для группу",
         responses={
             200: {
                 "description": "Список замен",
@@ -71,10 +95,11 @@ async def get_replacements(
         return JSONResponse(content={"message": "Неизвестная ошибка при получении списка замен"}, status_code=500)
 
 
+
 @router_replace.put(
         path="/put",
         tags=["Замены"],
-        description="Добавить замену",
+        summary="Добавить замену",
 )
 async def put_replace(
     session: SessionDep,
@@ -103,7 +128,7 @@ async def put_replace(
 
 @router_replace.delete(
         path="/remove",
-        description="Удалить замену",
+        summary="Удалить замену",
         responses={
             200: {
                 "description": "Успешное удаление",
@@ -128,7 +153,7 @@ async def put_replace(
             },
 
             500: {
-                "description": "Ошибка при удалении группы",
+                "description": "Ошибка при удалении замены",
                 "content": {
                     "application/json": {
                         "example": {
@@ -160,3 +185,46 @@ async def remove_replace(
     else:
         logger.error("Неизвестная ошибка при удалении . Отдаём ответ")
         return JSONResponse(content={"message": "Неизвестная ошибка удалении замены"}, status_code=500)
+
+
+@router_replace.delete(
+        path="/remove/all",
+        summary="Удалить все замены",
+        responses={
+            200: {
+                "description": "Успешное удаление всех замен",
+                "content": {
+                    "application/json": {
+                        "example": {
+                            "message": "Все замены были удалены"
+                        }
+                    }
+                },
+            },
+
+
+            500: {
+                "description": "Ошибка при удалении всех замен",
+                "content": {
+                    "application/json": {
+                        "example": {
+                            "message": "Неизвестная ошибка удалении всех замен"
+                        }
+                    }
+                },
+            },
+        },
+)
+async def remove_all_replace(
+    session: SessionDep,
+) -> JSONResponse:
+    logger.info(f"Запрос на удаление всех замен.")
+
+    removing: bool = await utils.remove_all_replacements(session)
+
+    if removing:
+        logger.info("Все замены успешно удалены. Отдаём ответ")
+        return JSONResponse(content={"message": "Все замены были удалены"}, status_code=200)
+    else:
+        logger.error("Неизвестная ошибка при удалении всех замен. Отдаём ответ")
+        return JSONResponse(content={"message": "Неизвестная ошибка удалении всех замен"}, status_code=500)

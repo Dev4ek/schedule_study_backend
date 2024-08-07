@@ -10,7 +10,7 @@ router_cabinet = APIRouter(prefix="/cabinet", tags=["Кабинеты"])
 
 @router_cabinet.get(
         path="/all",
-        description="Список всех кабинетов",
+        summary="Список всех кабинетов",
         responses={
             200: {
                 "description": "Получен список",
@@ -18,11 +18,11 @@ router_cabinet = APIRouter(prefix="/cabinet", tags=["Кабинеты"])
                     "application/json": {
                         "example": [
                             {
-                                "id": 1,
+                                "cabinet_id": 1,
                                 "cabinet": "405-1"
                             },
                             {
-                                "id": 2,
+                                "cabinet_id": 2,
                                 "cabinet": "36-2"
                             }
                             ]
@@ -60,7 +60,7 @@ async def get_cabients(
 
 @router_cabinet.put(
         path="/put/{cabinet}",
-        description="Добавить кабинет",
+        summary="Добавить кабинет",
         responses={
             200: {
                 "description": "Успешное добавление",
@@ -118,7 +118,7 @@ async def put_cabinet(
 
 @router_cabinet.delete(
         path="/remove/{cabinet}",
-        description="Удалить кабинет",
+        summary="Удалить кабинет",
         responses={
             200: {
                 "description": "Успешное удаление",

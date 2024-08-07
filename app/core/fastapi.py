@@ -27,12 +27,13 @@ app.add_middleware(
 )
 
 
+app.include_router(routers.app.router_app)
 app.include_router(routers.lesson.router_lesson)
+app.include_router(routers.replace.router_replace)
 app.include_router(routers.time.router_time)
 app.include_router(routers.group.router_group)
 app.include_router(routers.teacher.router_teacher)
 app.include_router(routers.cabinet.router_cabinet)
-app.include_router(routers.replace.router_replace)
 app.include_router(routers.file.router_file)
 
 

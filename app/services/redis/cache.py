@@ -2,13 +2,14 @@ from redis.asyncio import Redis
 import os
 from loguru import logger
 import json
+from typing import Any
 
 
-async def check_lessons(group: str) -> str | None:
+async def check_lessons(key: str) -> dict | bool:
     try:
-        logger.debug(f"Проверяем расписание в кеше redis. Группа: {group}")
+        logger.debug(f"Проверяем расписание в кеше redis. ключ: {key}")
 
-        lessons_key = "lesssons:" + group
+        lessons_key = "lesssons:" + key
         
         logger.debug("Подключаемся к redis")
         redis = Redis.from_url(os.getenv('redis_url'),  decode_responses=True)
@@ -35,10 +36,10 @@ async def check_lessons(group: str) -> str | None:
 
 
 
-async def set_lesssons(group: str, schedule: str) -> bool:
+async def set_lesssons(key: str, schedule: str) -> bool:
     try:
-        logger.debug(f"Сохраняем расписание в кеше redis. Группа: {group}")
-        lessons_key = "lesssons:" + group
+        logger.debug(f"Сохраняем расписание в кеше redis. ключ: {key}")
+        lessons_key = "lesssons:" + key
 
         logger.debug("Подключаемся к redis")
         redis = Redis.from_url(os.getenv('redis_url'), encoding="utf8")
@@ -53,5 +54,11 @@ async def set_lesssons(group: str, schedule: str) -> bool:
         logger.debug("Возвращаем True")
         return True
     except Exception:
-        logger.exception(f"При установке расписания в кеш redis произошла ошибка. Группа: {group}")
+        logger.exception(f"При установке расписания в кеш redis произошла ошибка. Группа: {key}")
         return False
+    
+    
+    
+    
+    
+    

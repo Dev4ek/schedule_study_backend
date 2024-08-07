@@ -231,16 +231,16 @@ async def check_time_lessons(event_time: list, previous_event_time: list):
                         logger.debug("До начала следующего события меньше часа")
                         return "wait", f"До начала {correct_str_min}", percentage
                     logger.debug("До начала следующего события больше часа")
-                    return None, "", 0
+                    return "not active", "", 0
                 else:
                     logger.debug("Ожидание продолжения после перерыва")
                     return "wait", f"До продолжения {correct_str_min}", percentage
 
         logger.debug("Ни одно из условий не выполнено, возвращаем None")
-        return None, "", 0
+        return "not active", "", 0
     except Exception:
         logger.exception("Произошла ошибка в check_time_lessons")
-        return None, "", 0
+        return "not active", "", 0
 
 async def get_time(
         day: str, # Понедельник or None
@@ -253,6 +253,7 @@ async def get_time(
         logger.debug("Формируем запрос на получение времени")
         query = (
             db.select(db.table.Times.num_day, 
+                        db.table.Times.id, 
                         db.table.Times.num_lesson, 
                         db.table.Times.time)
             .order_by(
@@ -292,6 +293,7 @@ async def get_time(
             if item.num_day not in day_dict:
                 day_dict[item.num_day] = []
             time_lesson_key = {
+                "time_id": item.id,
                 "num_lesson": item.num_lesson,
                 "event_time": item.time,
             }

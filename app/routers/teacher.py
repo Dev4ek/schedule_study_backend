@@ -33,11 +33,9 @@ router_teacher = APIRouter(prefix="/teacher", tags=["Учителя"])
 
 
 
-
-
 @router_teacher.get(
         path="/all",
-        description="Список всех учителей",
+        summary="Список всех учителей",
         responses={
             200: {
                 "description": "Список учителей",
@@ -46,11 +44,11 @@ router_teacher = APIRouter(prefix="/teacher", tags=["Учителя"])
                         "example": 
                         [
                             {
-                                "id": 1,
+                                "teacher_id": 1,
                                 "teacher": "Демиденко Наталья Ильинична"
                             },
                             {
-                                "id": 3,
+                                "teacher_id": 3,
                                 "teacher": "Вартабедьян Виктория Борисовна"
                             }
                             ]
@@ -89,7 +87,7 @@ async def get_teachers(
 
 @router_teacher.put(
         path="/put/{teacher}",
-        description="Добавить учителя",
+        summary="Добавить учителя",
         responses={
             200: {
                 "description": "Успешно добавлен",
@@ -149,7 +147,7 @@ async def put_teacher(
 
 @router_teacher.delete(
         path="/remove/{teacher}",
-        description="Удалить учителя",
+        summary="Удалить учителя",
         responses={
             200: {
                 "description": "Успешно удален",

@@ -23,7 +23,7 @@ async def all_teachers(
         teachers = []
         for teacher in teachers_data:
             teachers.append({
-                "id": teacher.id,
+                "teacher_id": teacher.id,
                 "teacher": teacher.full_name
             })
 
