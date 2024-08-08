@@ -3,11 +3,11 @@ from loguru import logger
 from .. import schemas
 from app import schemas
 from app.core.dependencies import SessionDep
-
+from icecream import ic
 
 
 async def put_replace(
-        payload: schemas.Replace_input,
+        payload: schemas.Replace_in,
         session: SessionDep, # Сессия базы данных
 ) -> bool:
     try:
@@ -81,7 +81,7 @@ async def put_replace(
 async def replacemetns_group(
         group: str, # example "Исп-232"
         session: SessionDep # Сессия базы данных
-) -> schemas.Replace_output | bool:
+) -> schemas.Replace_out | bool:
     try:
         logger.debug("Формируем запрос в бд")
 
@@ -96,34 +96,34 @@ async def replacemetns_group(
         result = await session.execute(query_select)
 
         logger.debug("Получаем данные")
-        results = result.scalars().all()
+        results = result.all()
 
-        list_replacements = {}
-
-        for replace in results:
-            day_key = f"day_{replace.num_day}"
-            lesson_key = f"lesson_{replace.num_lesson}"
-            
-            if day_key not in list_replacements:
-                list_replacements[day_key] = {"date": replace.date}
-                
-            if lesson_key not in list_replacements[day_key]:
-                list_replacements[day_key][lesson_key] = {}
-
-            list_replacements[day_key][lesson_key].update({
-                "replace_id": replace.id,
-                "item": replace.item,
-                "teacher": replace.teacher,
-                "cabinet": replace.cabinet,
-            })
-
+        logger.debug("Формируем json ответ")
+        list_replacements = []
+        
+        result_date = await session.execute(db.select(db.table.Depends.date_replacements))
+        date_replacements = result_date.scalar()
+        
+        for data_replace in results:
+            for replace in data_replace:
+                list_replacements.append({
+                    "replace_id": replace.id,
+                    "num_lesson": replace.num_lesson,
+                    "item": replace.item,
+                    "teacher": replace.teacher,
+                    "cabinet": replace.cabinet,
+                })
+        
         output_json = {
             "group": group,
+            "date": date_replacements,
             "replacements": list_replacements,
         }
 
-        logger.debug("Возвращаем json ответ")
-        return output_json
+        logger.debug("Формируем модель pydantic и вовзращаем")
+        output_json_model = schemas.Replace_out(**output_json).model_dump()
+        
+        return output_json_model
     except Exception:
         logger.exception(f"Произошла ошибка при получении замен")
         return False
@@ -132,53 +132,61 @@ async def replacemetns_group(
 
 async def all_replacemetns(
         session: SessionDep # Сессия базы данных
-) -> schemas.Replace_output | bool:
+) -> schemas.Replacements_all_out | bool:
     try:
-        logger.debug("Формируем запрос в бд")
-
+        logger.debug("Формируем запросы в бд")
         query_select = (
             db.select(db.table.Replacements)
             .order_by(db.table.Replacements.group, db.table.Replacements.num_day, db.table.Replacements.num_lesson)
         )
 
-        logger.debug("Выполняем запрос в бд")
+        logger.debug("Выполняем запросы в бд")
         result = await session.execute(query_select)
+        result_date = await session.execute(db.select(db.table.Depends.date_replacements))
 
         logger.debug("Получаем данные")
         results = result.all()
 
-        date_replacemetns = None
-        list_data_replacemetns = {}
-        list_replacemetns = []
+        date_replacements = result_date.scalar()
 
         logger.debug("Формируем json ответ")
-
-        for replace in results:
-            for data_repalace in replace:
-                date = data_repalace.date
-                group = data_repalace.group
-                
-                output_json = {
-                    "group": group,
-                    "date": date_replacemetns,
-                    "replacemetns": list_replacemetns
+        
+        output_json = {
+            "date": date_replacements,
+            "data": []
+        }
+        
+        for data_replace in results:
+            list_replacements = []
+            
+            for replace in data_replace:
+                repalce_info = {
+                    "replace_id": replace.id,
+                    "num_lesson": replace.num_lesson,
+                    "item": replace.item,
+                    "teacher": replace.teacher,
+                    "cabinet": replace.cabinet,
                 }
-                    
-                for data_replace_item in replace:
-                    list_replacemetns.append({
-                            "id": data_replace_item.id,
-                            "item": data_replace_item.item,
-                            "teacher": data_replace_item.teacher,
-                            "cabinet": data_replace_item.cabinet,
-                            "day": schemas.Num_to_day[data_replace_item.num_day],
-                            "num_lesson": data_replace_item.num_lesson,
-                        })
+
+                adding = False
+                
+                for i in output_json["data"]:
+                    if i["group"] == replace.group:
+                        i["replacements"].append(repalce_info)
+                        adding = True
+                if not adding:
+                    list_replacements.append(repalce_info)
+                    output_json["data"].append({
+                            "group": replace.group,
+                            "replacements": list_replacements
+                        })  
 
 
+        ic(output_json)
+        logger.debug("Формируем pydantic модель и возвращаем ответ")
+        all_replacemetns_model_out = schemas.Replacements_all_out(**output_json).model_dump()
 
-        # logger.debug("Возвращаем json ответ")
-        # return output_json
-        return True
+        return all_replacemetns_model_out
     except Exception:
         logger.exception(f"Произошла ошибка при получении замен")
         return False

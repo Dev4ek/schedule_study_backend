@@ -5,6 +5,7 @@ from sqlalchemy.orm import sessionmaker
 from . import base_ORM
 from loguru import logger
 from sqlalchemy_utils import database_exists, create_database
+from sqlalchemy import insert
 
 
 async def get_engine(sync=False):
@@ -49,5 +50,11 @@ async def create_tables():
     logger.debug("Запускаем создание таблиц")
     base_ORM.Base.metadata.create_all(engine, checkfirst=True)
     logger.info("tables created successfully")
+    
+    Session = sessionmaker(bind=engine)
+    session = Session()
+    session.execute(insert(base_ORM.Depends).values(date_replacements="1 Сентября")) 
+    session.commit()
+    session.close()
     return True
 

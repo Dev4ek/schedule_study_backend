@@ -13,13 +13,14 @@ router_replace = APIRouter(prefix="/replace", tags=["Замены"])
 @router_replace.get(
         path="/all",
         summary="Список всех замен для групп",
+        response_model=schemas.Replacements_all_out
 )
 async def get_all_replacements(
     session: SessionDep,
 ) -> JSONResponse:
     logger.info("Запрос на получение всех замен")
 
-    getting: bool | schemas.Replace_output = await utils.all_replacemetns(session)
+    getting: bool | schemas.Replacements_all_out = await utils.all_replacemetns(session)
 
     if getting:
         logger.info("Отдаём ответ список замен")
@@ -33,51 +34,8 @@ async def get_all_replacements(
 
 @router_replace.get(
         path="/{group}",
-        summary="Список всех замен для группу",
-        responses={
-            200: {
-                "description": "Список замен",
-                "content": {
-                    "application/json": {
-                        "example": 
-                           {
-                            "group": "Исп-232",
-                            "date": "1 Августа",
-                            "replacemetns": [
-                                {
-                                    "id": 3,
-                                    "item": "Английский язые",
-                                    "teacher": "Демиденко Наталья Ильинична",
-                                    "cabinet": "36-2",
-                                    "day": "Суббота",
-                                    "num_lesson": 1
-                                },
-                                {
-                                    "id": 4,
-                                    "item": "Английский язык",
-                                    "teacher": "Демиденко Н.И.",
-                                    "cabinet": "405-1",
-                                    "day": "Четверг",
-                                    "num_lesson": 1
-                                },
-                                
-                            ]
-                        }
-                    }
-                },
-            },
-
-            500: {
-                "description": "Ошибка установки",
-                "content": {
-                    "application/json": {
-                        "example": {
-                            "message": "Неизвестная ошибка при получении списка групп"
-                        }
-                    }
-                },
-            },
-        }
+        summary="Список замен для группы",
+        response_model=schemas.Replace_out
 )
 async def get_replacements(
     session: SessionDep,
@@ -85,7 +43,7 @@ async def get_replacements(
 ) -> JSONResponse:
     logger.info("Запрос на получение всех замен на группу {group}")
 
-    getting: bool | schemas.Replace_output = await utils.replacemetns_group(group, session)
+    getting: bool | schemas.Replace_out = await utils.replacemetns_group(group, session)
 
     if getting:
         logger.info("Отдаём ответ список замен")
@@ -96,16 +54,16 @@ async def get_replacements(
 
 
 
+
 @router_replace.put(
-        path="/put",
+        path="/",
         tags=["Замены"],
-        summary="Добавить замену",
+        summary="Добавить или изменить замену",
 )
 async def put_replace(
     session: SessionDep,
-    payload: schemas.Replace_input = Body(..., description="Замена", example={
+    payload: schemas.Replace_in = Body(..., description="Замена", example={
         "group": "Исп-232",
-        "date": "23 Сентября",
         "day": "Понедельник",
         "item": "Русский язык",
         "num_lesson": 1,
@@ -127,7 +85,7 @@ async def put_replace(
 
 
 @router_replace.delete(
-        path="/remove",
+        path="/",
         summary="Удалить замену",
         responses={
             200: {
@@ -188,7 +146,7 @@ async def remove_replace(
 
 
 @router_replace.delete(
-        path="/remove/all",
+        path="/all",
         summary="Удалить все замены",
         responses={
             200: {
@@ -215,7 +173,7 @@ async def remove_replace(
             },
         },
 )
-async def remove_all_replace(
+async def delete_all(
     session: SessionDep,
 ) -> JSONResponse:
     logger.info(f"Запрос на удаление всех замен.")
@@ -228,3 +186,24 @@ async def remove_all_replace(
     else:
         logger.error("Неизвестная ошибка при удалении всех замен. Отдаём ответ")
         return JSONResponse(content={"message": "Неизвестная ошибка удалении всех замен"}, status_code=500)
+
+
+
+@router_replace.put(
+        path="/date/{date}",
+        summary="Установить дату замен",
+)
+async def set_date(
+    session: SessionDep,
+    date: str = Path(..., title="Дата замен", description="Дата установки замен", example="23 Сентября")
+) -> JSONResponse:
+    logger.info(f"Запрос на удаление всех замен.")
+
+
+
+    # if removing:
+    #     logger.info("Все замены успешно удалены. Отдаём ответ")
+    #     return JSONResponse(content={"message": "Все замены были удалены"}, status_code=200)
+    # else:
+    #     logger.error("Неизвестная ошибка при удалении всех замен. Отдаём ответ")
+    #     return JSONResponse(content={"message": "Неизвестная ошибка удалении всех замен"}, status_code=500)

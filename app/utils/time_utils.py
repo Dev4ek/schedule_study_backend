@@ -136,7 +136,7 @@ async def correct_str_minites(
         minutes: int
 ):
 
-    logger.debug(f"correct_str_minites")
+    logger.debug(f"Корректировка времени чтобы выглядело красиво")
 
     try:
         minutes_last_symbol = str(minutes)[-1]
@@ -359,3 +359,22 @@ async def remove_time(
     except Exception:
         logger.exception(f"Произошла ошибка при удалении времени")
         return False
+    
+    
+    
+async def set_date(date, sesion: SessionDep):
+    try:
+        logger.debug("Делаем запрос в бд на вставку даты замен")
+        await sesion.execute(
+            db.insert(db.table.Depends)
+            .values(date=date)    
+            )
+        
+        await sesion.commit()
+    
+        logger.debug("Успешно измненно. Вовзращаем True")
+        return True
+    except Exception:
+        logger.exception(f"Произошла ошибка при удалении времени")
+        return False
+    

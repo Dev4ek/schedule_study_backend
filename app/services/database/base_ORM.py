@@ -25,7 +25,6 @@ class Replacements(Base):
     __tablename__ ='replacement'
 
     id: Mapped[Integer] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    date: Mapped[str] = mapped_column(String(50))
     group: Mapped[String] = mapped_column(String(10), index=True)
 
     item: Mapped[str] = mapped_column(nullable=True)
@@ -35,6 +34,13 @@ class Replacements(Base):
     teacher: Mapped[String] = mapped_column(String(100), nullable=True)
     cabinet: Mapped[String] = mapped_column(String(50), nullable=True)
 
+class Depends(Base):
+    __tablename__ ='depends'
+    
+    id: Mapped[Integer] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    date_replacements: Mapped[str] = mapped_column(String(30), nullable=True)
+    
+    
 
 class Times(Base):
     __tablename__ = 'time'
@@ -71,5 +77,4 @@ class Accounts(Base):
     id: Mapped[Integer] = mapped_column(Integer, primary_key=True, autoincrement=True)
     login: Mapped[String] = mapped_column(String(50), unique=True)
     password: Mapped[str] = mapped_column(String(255))
-    
     

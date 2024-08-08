@@ -1,5 +1,5 @@
 from . import time_utils
-from .lesson_utils import get_lessons, remove_lesson, put_lesson, get_lessons_teacher, get_lesson_by_id
+from .lesson_utils import get_lessons_app, remove_lesson, put_lesson, get_lessons_teacher_app, get_lesson_by_id, check_setted_lesson, get_lesson_group, get_lesson_teacher
 from .teacher_utils import all_teachers, put_teacher, remove_teacher
 from .group_utils import put_group, remove_group, all_groups
 from .time_utils import get_time, set_time, remove_time

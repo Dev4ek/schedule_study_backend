@@ -7,10 +7,10 @@ from app.core.dependencies import SessionDep
 from icecream import ic
 
 
-async def get_lessons(
+async def get_lessons_app(
         group: str, # group example "Исп-232"
         session: SessionDep, # Сессия базы данных
-) -> bool | schemas.Schedule_output:
+) -> bool | schemas.Schedule_app_output:
     try:
         num_day, num_week = await time_utils.get_day_and_week_number()
         logger.debug(f"Успешно получили num_day: {num_day}, num_week: {num_week}")
@@ -131,6 +131,115 @@ async def get_lessons(
 
 
         logger.debug("Формируем pydantic model")
+        schedule_info_model = schemas.Schedule_app_output(
+            **schedule_info
+        ).model_dump()
+
+        logger.debug("Расписание успешно сформированно. Вовзаращем его")
+        return schedule_info_model
+
+    except Exception:
+        logger.exception("Ошибка при получении расписания из базы данных")
+        return False
+    
+
+
+
+async def get_lesson_group(
+        group: str, # group example "Исп-232"
+        session: SessionDep, # Сессия базы данных
+) -> bool | schemas.Schedule_output:
+    try:
+        num_day, num_week = await time_utils.get_day_and_week_number()
+        logger.debug(f"Успешно получили num_day: {num_day}, num_week: {num_week}")
+
+        logger.debug("Формируем запросы на получение данных")
+        query_lessons = (
+            db.select(
+                db.table.Lessons.id, 
+                db.table.Lessons.item, 
+                db.table.Lessons.num_day, 
+                db.table.Lessons.num_lesson, 
+                db.table.Lessons.week, 
+                db.table.Lessons.teacher, 
+                db.table.Lessons.cabinet
+            )
+            .filter(db.table.Lessons.group == group, db.table.Lessons.week == num_week, db.table.Lessons.num_lesson != 0)
+            .order_by(db.table.Lessons.num_day.asc(), db.table.Lessons.num_lesson.asc())
+        )
+      
+        query_replacements = (
+            db.select(db.table.Replacements)
+            .filter_by(group=group)
+        )
+
+
+        logger.debug("Создаём заготовку для ответа")
+        final_schedule = []
+        schedule_info = {
+            "group": group,
+            "week": num_week,
+            "schedule": final_schedule
+            }
+
+        logger.debug("Выполняем запросы на получение данных")
+        result_lessons = await session.execute(query_lessons)
+        result_replacements = await session.execute(query_replacements)
+
+        logger.debug("Получение результатов запросов")
+        schedule_data = result_lessons.all()
+        if not schedule_data:
+            logger.debug("Пар для этой группы нет. Возвращаем пустую заготовку")
+            return schedule_info
+
+        replacements_data = result_replacements.scalars().all()
+
+        logger.debug("Обрабатываем замены и формируем словарь")
+        replacements_key = {
+            (i.num_day, i.num_lesson): {
+                "replace_id": i.id, 
+                "item": i.item, 
+                "cabinet": i.cabinet,
+                "teacher": i.teacher 
+            }
+            for i in replacements_data
+        }
+
+        logger.debug("Группируем пары по дням")
+        grouped_schedule = {}
+        for lesson in schedule_data:
+            grouped_schedule.setdefault(lesson.num_day, []).append(lesson)
+
+        logger.debug("Сортируем расписание по дням, начиная с текущего дня")
+        sorted_days = sorted(grouped_schedule.keys())
+        try:
+            index = sorted_days.index(num_day)
+            sorted_schedule_keys = sorted_days[index:] + sorted_days[:index]
+        except ValueError:
+            logger.warning("Произошла ошибка. На сегодня нет расписания. Оставляем такой же порядок")
+            sorted_schedule_keys = sorted_days
+
+        for day in sorted_schedule_keys:
+            logger.debug(f"Обрабатываем расписание для дня: {day}")
+            lessons_in_schedule = []
+            for lesson in grouped_schedule[day]:
+                lessons_in_schedule.append({
+                    "lesson_id": lesson.id,
+                    "item": lesson.item,
+                    "cabinet": lesson.cabinet,
+                    "teacher": lesson.teacher,
+                    "num_lesson": lesson.num_lesson,
+                    "replace": replacements_key.get((lesson.num_day, lesson.num_lesson))
+                })
+                
+            final_schedule.append({
+                "day": schemas.Num_to_day[day],
+                "date": await time_utils.get_date_by_day(day),
+                "lessons": lessons_in_schedule
+            })
+
+
+        logger.debug("Формируем pydantic model")
         schedule_info_model = schemas.Schedule_output(
             **schedule_info
         ).model_dump()
@@ -141,9 +250,15 @@ async def get_lessons(
     except Exception:
         logger.exception("Ошибка при получении расписания из базы данных")
         return False
+    
+    
+    
+
+    
 
 
-async def get_lessons_teacher(
+
+async def get_lessons_teacher_app(
         teacher: str, # teacher example "Демиденко Наталья Ильинична"
         session: SessionDep, # Сессия базы данных
 ) -> schemas.Schedule_tacher_output | bool:
@@ -290,6 +405,130 @@ async def get_lessons_teacher(
     except Exception:
         logger.exception(f"Ошибка при получении расписания для учителя {teacher} из базы данных")
         return False
+
+
+
+
+async def get_lesson_teacher(
+        teacher: str, # teacher example "Демиденко Наталья Ильинична"
+        session: SessionDep, # Сессия базы данных
+) -> schemas.Schedule_tacher_output | bool:
+    try:
+        logger.debug("Формируем запрос на получение пар для учителя")
+
+        num_day, num_week = await time_utils.get_day_and_week_number()
+        logger.debug(f"Успешно получили num_day: {num_day}, num_week: {num_week}")
+
+        logger.debug("Формируем запросы на получение данных")
+        query_lessons = (
+            db.select(
+                db.table.Lessons.id, 
+                db.table.Lessons.item, 
+                db.table.Lessons.group, 
+                db.table.Lessons.num_day, 
+                db.table.Lessons.num_lesson, 
+                db.table.Lessons.week, 
+                db.table.Lessons.teacher, 
+                db.table.Lessons.cabinet
+            )
+            .filter_by(teacher=teacher, week=num_week)
+            .order_by(db.table.Lessons.num_day.asc(), db.table.Lessons.num_lesson.asc())
+        )
+      
+
+        query_replacements = (
+            db.select(db.table.Replacements.id,
+                      db.table.Replacements.num_day,
+                      db.table.Replacements.num_lesson,
+                      db.table.Replacements.item,
+                      db.table.Replacements.teacher,
+                      db.table.Replacements.cabinet,
+                      db.table.Replacements.group
+                      )
+            .filter_by(teacher=teacher)
+        )
+
+
+        logger.debug("Создаём заготовку для ответа")
+        final_schedule = []
+        schedule_info = {
+            "teacher": teacher,
+            "week": num_week,
+            "schedule": final_schedule
+            }
+
+        logger.debug("Выполняем запросы на получение данных")
+        result_lessons = await session.execute(query_lessons)
+        result_replacements = await session.execute(query_replacements)
+
+        logger.debug("Получение результатов запросов")
+        schedule_data = result_lessons.all()
+        if not schedule_data:
+            logger.debug("Пар для этого учителя нет. Возвращаем пустую заготовку")
+            return schedule_info
+        
+        replacements_data = result_replacements.all()
+
+        logger.debug("Обрабатываем замены и формируем словарь")
+        replacements_key = {
+            (i.num_day, i.num_lesson): {
+                "replace_id": i.id,
+                "item": i.item, 
+                "group": i.group, 
+                "cabinet": i.cabinet
+            }
+            for i in replacements_data
+        }
+
+
+        logger.debug("Группируем пары по дням")
+        grouped_schedule = {}
+        for lesson in schedule_data:
+            grouped_schedule.setdefault(lesson.num_day, []).append(lesson)
+
+        logger.debug("Сортируем расписание по дням, начиная с текущего дня")
+        sorted_days = sorted(grouped_schedule.keys())
+        try:
+            index = sorted_days.index(num_day)
+            sorted_schedule_keys = sorted_days[index:] + sorted_days[:index]
+        except ValueError:
+            logger.warning("Произошла ошибка. На сегодня нет расписания. Оставляем такой же порядок")
+            sorted_schedule_keys = sorted_days
+
+        for day in sorted_schedule_keys:
+            logger.debug(f"Обрабатываем расписание для дня: {day}")
+            lessons_in_schedule = []
+            for lesson in grouped_schedule[day]:
+                lessons_in_schedule.append({
+                    "lesson_id": lesson.id,
+                    "item": lesson.item,
+                    "cabinet": lesson.cabinet,
+                    "group": lesson.group,
+                    "num_lesson": lesson.num_lesson,
+                    "replace": replacements_key.get((lesson.num_day, lesson.num_lesson))
+                })
+
+            final_schedule.append({
+                "day": schemas.Num_to_day[day] + " (Сегодня)" if num_day == day else schemas.Num_to_day[day],
+                "date": await time_utils.get_date_by_day(day),
+                "lessons": lessons_in_schedule
+            })
+            
+        logger.debug("Формирование модели pydanitc")
+        
+        schedule_info_model = schemas.Schedule_tacher_output(
+            **schedule_info
+        ).model_dump()
+            
+
+        logger.debug("Расписание успешно сформированно. Вовзаращем его")
+        return schedule_info_model
+
+
+    except Exception:
+        logger.exception(f"Ошибка при получении расписания для учителя {teacher} из базы данных")
+        return False
+
 
 async def put_lesson(
     payload: schemas.Lesson_input, # Схема установки расписания
@@ -469,6 +708,7 @@ async def get_lesson_by_id(
                     cabinet=data_lesson.cabinet,
                     group=data_lesson.group,
                     num_lesson=data_lesson.num_lesson,
+                    week=data_lesson.week,
                     day=schemas.Num_to_day[data_lesson.num_day],
                     event_time=data_time.split(", ") if data_time else ["ㅤ"],
                     replace=form_replace
@@ -480,3 +720,48 @@ async def get_lesson_by_id(
         logger.exception(f"Произошла ошибка при удалении пары")
         return False
     
+    
+
+async def check_setted_lesson(
+    payload: schemas.Lesson_check_in,
+    session: SessionDep, # Сессия базы данных
+):
+    try:
+        logger.debug("Выполняем запрос в бд для проверки установленных пар")
+        lesson = await session.execute(
+                                        db.select(db.table.Lessons.__table__)
+                                        .filter_by(
+                                            cabinet=payload.cabinet,
+                                            num_day=schemas.Day_to_num[payload.day],
+                                            num_lesson=payload.num_lesson,
+                                            week=payload.week,
+                                        )
+                                        )
+
+        logger.debug("Получаем данные о парах")
+        data_lesson = lesson.first()
+
+        logger.debug("Формируем модель pydantic и возвращаем её")
+        if data_lesson != None:
+            return schemas.Check_setted_output(
+                            use=True,
+                            lesson={
+                                "lesson_id":data_lesson.id,
+                                "item":data_lesson.item,
+                                "teacher":data_lesson.teacher,
+                                "cabinet":data_lesson.cabinet,
+                                "group":data_lesson.group,
+                                "num_lesson":data_lesson.num_lesson,
+                                "week":data_lesson.week,
+                                "day":schemas.Num_to_day[data_lesson.num_day]
+                            }
+                ).model_dump()
+        else:
+            return schemas.Check_setted_output(
+                            use=False,
+                            lesson=None
+                ).model_dump()
+            
+    except Exception:
+        logger.exception(f"Произошла ошибка при получении данных")
+        return False

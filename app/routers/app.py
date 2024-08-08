@@ -14,7 +14,7 @@ router_app = APIRouter(prefix="/app", tags=["Приложение"])
         path="/group/{group}", 
         dependencies=[Depends(dependencies.verify_version)],
         summary="Посмотреть расписание для группы",
-        response_model=schemas.Schedule_output,
+        response_model=schemas.Schedule_app_output,
 )
 async def get_lessons(
     session: SessionDep, # Сессия базы данных
@@ -28,13 +28,13 @@ async def get_lessons(
         logger.debug(f"Расписание есть в кеше redis")
 
         logger.debug("Формируем ответ в pydantic model")
-        cache_schedule_model = schemas.Schedule_output(**cache_schedule).model_dump()
+        cache_schedule_model = schemas.Schedule_app_output(**cache_schedule).model_dump()
         
         logger.info(f"Вовзращаем сформированнное json расписание для группы. Группа: {group}")
         return JSONResponse(content=cache_schedule_model, status_code=200)
 
     logger.debug(f"Расписание не найдено в кеше redis. Запускем функцию формирования расписания")
-    schedule: bool | schemas.Schedule_output = await utils.get_lessons(group, session)
+    schedule: bool | schemas.Schedule_app_output = await utils.get_lessons_app(group, session)
 
     if schedule:
         logger.debug("Устанавливаем сформированное расписание в кеш redis")
@@ -72,7 +72,7 @@ async def get_lesson_for_teacher(
         return JSONResponse(content=cache_schedule_model, status_code=200)
 
     logger.debug(f"Расписание не найдено в кеше redis. Запускем функцию формирования расписания")
-    getting: schemas.Schedule_tacher_output | bool = await utils.get_lessons_teacher(teacher, session)
+    getting: schemas.Schedule_tacher_output | bool = await utils.get_lessons_teacher_app(teacher, session)
 
     if getting:
         logger.debug("Устанавливаем сформированное расписание в кеш redis")
