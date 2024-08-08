@@ -187,6 +187,7 @@ async def get_file_raspisanie(session: SessionDep):
                                     worksheet.write(keys_coordinats[day][lesson], column, lessons_sorted[group][week][day][lesson]['item'], style_lesson_insert)
                                     worksheet.write(keys_coordinats[day][lesson] + 1, column, lessons_sorted[group][week][day][lesson]['teacher'], style_teacher_insert), 
                                     worksheet.write_merge(keys_coordinats[day][lesson], keys_coordinats[day][lesson] + 1, column + 1, column + 1, lessons_sorted[group][week][day][lesson]['cabinet'], cabinet_lesson_style)
+
                                 
                                 else:
                                     style_lesson_insert = lesson_style(size_font=8, white=False)

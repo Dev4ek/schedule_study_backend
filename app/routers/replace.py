@@ -53,8 +53,6 @@ async def get_replacements(
         return JSONResponse(content={"message": "Неизвестная ошибка при получении списка замен"}, status_code=500)
 
 
-
-
 @router_replace.put(
         path="/",
         tags=["Замены"],
@@ -145,6 +143,8 @@ async def remove_replace(
         return JSONResponse(content={"message": "Неизвестная ошибка удалении замены"}, status_code=500)
 
 
+
+
 @router_replace.delete(
         path="/all",
         summary="Удалить все замены",
@@ -186,6 +186,67 @@ async def delete_all(
     else:
         logger.error("Неизвестная ошибка при удалении всех замен. Отдаём ответ")
         return JSONResponse(content={"message": "Неизвестная ошибка удалении всех замен"}, status_code=500)
+
+
+@router_replace.delete(
+        path="/{replace_id}",
+        summary="Удалить замену",
+        responses={
+            200: {
+                "description": "Успешное удаление",
+                "content": {
+                    "application/json": {
+                        "example": {
+                            "message": "Замена успешно удалена"
+                        }
+                    }
+                },
+            },
+
+            404: {
+                "description": "Не найдена",
+                "content": {
+                    "application/json": {
+                        "example": {
+                            "message": "Замена не найдена"
+                        }
+                    }
+                },
+            },
+
+            500: {
+                "description": "Ошибка при удалении замены",
+                "content": {
+                    "application/json": {
+                        "example": {
+                            "message": "Неизвестная ошибка удалении замены"
+                        }
+                    }
+                },
+            },
+        },
+)
+async def remove_replace(
+    session: SessionDep,
+    payload: schemas.Replace_remove = Body(..., description="Параметры замены", example={
+        "group": "Исп-232",
+        "day": "Понедельник",
+        "num_lesson": 1,
+    })
+) -> JSONResponse:
+    logger.info(f"Запрос на удаление замены. Payload: {payload.model_dump_json()}")
+
+    removing: bool | str = await utils.remove_replace(payload, session)
+
+    if removing == "not found":
+        logger.info("Замена не найдена. Отдаём ответ")
+        return JSONResponse(content={"message": "Замена не найдена"}, status_code=404)
+    elif removing:
+        logger.info("Замена успешно удалена. Отдаём ответ")
+        return JSONResponse(content={"message": "Замена успешно удалена"}, status_code=200)
+    else:
+        logger.error("Неизвестная ошибка при удалении . Отдаём ответ")
+        return JSONResponse(content={"message": "Неизвестная ошибка удалении замены"}, status_code=500)
 
 
 

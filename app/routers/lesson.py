@@ -1,3 +1,4 @@
+from typing import Optional
 from fastapi import APIRouter, Depends, Path, Query, Body
 from fastapi.responses import JSONResponse
 from ..core import dependencies
@@ -10,18 +11,40 @@ from app.services import database as db
 router_lesson = APIRouter(prefix="/lesson", tags=["Расписание"])
 
 
+
 @router_lesson.get(
-        path="/group/{group}",
+        path="/all",
+        summary="Посмотреть все пары на неделю     ",
+)
+async def get_all_lesssons(
+    session: SessionDep, # Сессия базы данных
+    num_week: Optional[int] = Query(None, description="НЕОБЯЗАТЕЛЬНО Номер недели", example="2",ge=1, le=2)
+) -> JSONResponse: 
+    logger.info(f"Запрос на просмотр всех пар")
+
+    getting: bool = await utils.get_all_lesssons(num_week, session)
+
+    if getting:
+        return JSONResponse(content={'message': "Пары успешно удалены"}, status_code=200)
+    
+    else:
+        logger.error(f"Отдаём ответ ошибка при удалении")
+        return JSONResponse(content={"message": "Неизвестная ошибка при удалении пар"}, status_code=500)
+
+
+@router_lesson.get(
+        path="/group",
         summary="Посмотреть пары для группы с заменами",
         response_model=schemas.Schedule_output
 )
 async def check_lessons_group(
     session: SessionDep, # Сессия базы данных
-    group: str = Path(..., description="Группа", example="Исп-232")
+    group: str = Query(..., description="Группа", example="Исп-232"),
+    num_week: Optional[int] = Query(None, description="НЕОБЯЗАТЕЛЬНО Номер недели", example="2",ge=1, le=2)
 ) -> JSONResponse: 
     logger.info(f"Запрос на получение пар для группы с заменами")
 
-    getting = await utils.get_lesson_group(group, session)
+    getting = await utils.get_lesson_group(group, num_week, session)
   
     if getting:
         logger.info(f"Отдаём ответ информацию о паре")
@@ -33,17 +56,18 @@ async def check_lessons_group(
 
 
 @router_lesson.get(
-        path="/teacher/{teacher}",
-        summary="Посмотреть пары для группы с заменами",
+        path="/teacher",
+        summary="Посмотреть пары для учителя с заменами",
         response_model=schemas.Schedule_output
 )
 async def check_lessons_teacher(
     session: SessionDep, # Сессия базы данных
-    teacher: str = Path(..., description="Учитель", example="Демиденко Наталья Ильинична")
+    teacher: str = Query(..., description="Учитель", example="Демиденко Наталья Ильинична"),
+    num_week: Optional[int] = Query(None, description="НЕОБЯЗАТЕЛЬНО Номер недели", example="2",ge=1, le=2)
 ) -> JSONResponse: 
     logger.info(f"Запрос на получение пар для для учителя с заменами")
 
-    getting = await utils.get_lesson_teacher(teacher, session)
+    getting = await utils.get_lesson_teacher(teacher, num_week, session)
   
     if getting:
         logger.info(f"Отдаём ответ информацию о паре")
@@ -163,6 +187,50 @@ async def put_lesson(
         logger.error(f"Пара для группы не была установлена. Отдаём ответ")
         return JSONResponse(content={"message": "Неизвестная ошибка при установке пары"}, status_code=500)
 
+
+
+
+@router_lesson.delete(
+        path="/all",
+        summary="Удалить все пары",
+        responses={
+            200: {
+                "description": "Успешное удаление",
+                "content": {
+                    "application/json": {
+                        "example": 
+                           {
+                            "message": "Пары успешно удалены"                               
+                           }
+                    }
+                },
+            },
+
+            500: {
+                "description": "Ошибка удаления",
+                "content": {
+                    "application/json": {
+                        "example": {
+                            "message": "Неизвестная ошибка при удалении пар"
+                        }
+                    }
+                },
+            },
+        }
+)
+async def remove_all_lesson(
+    session: SessionDep, # Сессия базы данных
+) -> JSONResponse: 
+    logger.info(f"Запрос на удаление всех пар")
+
+    removing: bool = await utils.remove_all_lesson(session)
+
+    if removing:
+        return JSONResponse(content={'message': "Пары успешно удалены"}, status_code=200)
+    
+    else:
+        logger.error(f"Отдаём ответ ошибка при удалении")
+        return JSONResponse(content={"message": "Неизвестная ошибка при удалении пар"}, status_code=500)
 
 
 @router_lesson.delete(

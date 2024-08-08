@@ -19,7 +19,7 @@ async def file_raspisanie(
 
     if getting:
         logger.info("Отдаём ответ файл")
-        return FileResponse(path="raspisanie.xls", status_code=200)
+        return FileResponse(path="raspisanie.xls", status_code=200, media_type='multipart/form-data')
     else:
         logger.error("Неизвестная ошибка при формировании файла. Оидаём ответ")
         return JSONResponse(content={"message": "Неизвестная ошибка при скачиваинии файла"}, status_code=500)
