@@ -54,7 +54,7 @@ async def get_replacements(
 
 
 @router_replace.put(
-        path="/",
+        path="",
         tags=["Замены"],
         summary="Добавить или изменить замену",
 )
@@ -83,7 +83,7 @@ async def put_replace(
 
 
 @router_replace.delete(
-        path="/",
+        path="",
         summary="Удалить замену",
         responses={
             200: {
@@ -188,9 +188,12 @@ async def delete_all(
         return JSONResponse(content={"message": "Неизвестная ошибка удалении всех замен"}, status_code=500)
 
 
+
+
+
 @router_replace.delete(
         path="/{replace_id}",
-        summary="Удалить замену",
+        summary="Удалить замену по айди",
         responses={
             200: {
                 "description": "Успешное удаление",
@@ -203,16 +206,6 @@ async def delete_all(
                 },
             },
 
-            404: {
-                "description": "Не найдена",
-                "content": {
-                    "application/json": {
-                        "example": {
-                            "message": "Замена не найдена"
-                        }
-                    }
-                },
-            },
 
             500: {
                 "description": "Ошибка при удалении замены",
@@ -228,20 +221,14 @@ async def delete_all(
 )
 async def remove_replace(
     session: SessionDep,
-    payload: schemas.Replace_remove = Body(..., description="Параметры замены", example={
-        "group": "Исп-232",
-        "day": "Понедельник",
-        "num_lesson": 1,
-    })
+    replace_id: int = Path(..., description="айди замены", example=5)
 ) -> JSONResponse:
-    logger.info(f"Запрос на удаление замены. Payload: {payload.model_dump_json()}")
+    logger.info(f"Запрос на удаление замены по")
 
-    removing: bool | str = await utils.remove_replace(payload, session)
+    removing: bool = await utils.remove_replace_by_id(replace_id, session)
 
-    if removing == "not found":
-        logger.info("Замена не найдена. Отдаём ответ")
-        return JSONResponse(content={"message": "Замена не найдена"}, status_code=404)
-    elif removing:
+  
+    if removing:
         logger.info("Замена успешно удалена. Отдаём ответ")
         return JSONResponse(content={"message": "Замена успешно удалена"}, status_code=200)
     else:

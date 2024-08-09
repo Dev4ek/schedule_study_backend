@@ -291,7 +291,7 @@ async def get_all_lesssons(
         logger.debug("Создаём заготовку для ответа")
         final_schedule = []
         schedule_info = {
-            "group": group,
+            "group": "",
             "week": num_week,
             "schedule": final_schedule
             }

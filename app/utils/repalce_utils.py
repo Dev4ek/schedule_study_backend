@@ -16,7 +16,6 @@ async def put_replace(
             db.select(db.table.Replacements.id)
             .filter_by(
                         group=payload.group,
-                        date=payload.date,
                         num_day=schemas.Day_to_num[payload.day],
                         num_lesson=payload.num_lesson,
                 )
@@ -41,7 +40,6 @@ async def put_replace(
                 )
                 .filter_by(
                         group=payload.group,
-                        date=payload.date,
                         num_day=schemas.Day_to_num[payload.day],
                         num_lesson=payload.num_lesson,
                 )
@@ -54,7 +52,6 @@ async def put_replace(
                 db.insert(db.table.Replacements)
                 .values(
                     group=payload.group,
-                    date=payload.date,
                     num_day=schemas.Day_to_num[payload.day],
                     num_lesson=payload.num_lesson,
                     item=payload.item,
@@ -235,6 +232,25 @@ async def remove_replace(
             logger.debug("Замена не найдена. Возвращаем not found")
             return "not found"
 
+    except Exception:
+        logger.exception(f"При удалении произошла ошибка")
+        return False
+    
+    
+
+
+async def remove_replace_by_id(
+        replace_id: int,
+        session: SessionDep # Сессия базы данных
+) -> bool:
+    try:
+        logger.debug("Формируем выполняем запрос в бд")
+        await session.execute(db.delete(db.table.Replacements).filter_by(id=replace_id))
+
+        await session.commit()
+
+        logger.debug("Замена успешно удалена. Возвращаем True")                    
+        return True
     except Exception:
         logger.exception(f"При удалении произошла ошибка")
         return False

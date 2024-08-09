@@ -17,7 +17,6 @@ if __name__ == "__main__":
     asyncio.set_event_loop(loop)
 
     async def main():
-
         await asyncio.gather(
             database.core.create_tables(),
             fastapi.start(),
