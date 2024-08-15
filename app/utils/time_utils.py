@@ -5,6 +5,7 @@ from app import schemas
 from ..services import database as db
 import calendar
 from app.core.dependencies import SessionDep
+from icecream import ic
 
 
 
@@ -243,7 +244,7 @@ async def check_time_lessons(event_time: list, previous_event_time: list):
         return "not active", "", 0
 
 async def get_time(
-        day: str, # Понедельник or None
+        day: schemas.Days, # Понедельник or None
         num_lesson: int, # 1, 2, 3, 4
         session: SessionDep
 ):
@@ -285,29 +286,36 @@ async def get_time(
         logger.debug("Получаем данные")
         time = result.all()
 
-
         logger.debug("Преобразуем данные. Создаем словарь времени на каждый день")
         time_keys = []
         day_dict = {}
         for item in time:
             if item.num_day not in day_dict:
                 day_dict[item.num_day] = []
-            time_lesson_key = {
-                "time_id": item.id,
-                "num_lesson": item.num_lesson,
-                "event_time": item.time,
-            }
+            time_lesson_key = schemas.Info_time(
+                time_id = item.id,
+                num_lesson = item.num_lesson,
+                event_time = item.time.split(', ')
+            )
             day_dict[item.num_day].append(time_lesson_key)
 
         logger.debug("Преобразуем словарь в нужный формат списка")
         for num_day, lessons in day_dict.items():
-            time_keys.append({
-                "day": schemas.Num_to_day[num_day],
-                "time": lessons
-            })
-
-        logger.debug("Возвращаем успешно сформированный json со временем")
-        return time_keys
+            time_keys.append(
+                schemas.Info_day(
+                    day = schemas.Num_to_day[num_day],
+                    time = lessons
+                ))
+            
+            
+        
+        if time_keys:
+            logger.debug("Формируем модель pydantic")
+            model_time = schemas.Check_time(time=time_keys)
+        
+            logger.debug("Возвращаем успешно сформированный json со временем")
+            return model_time
+        return []
     except Exception:
         logger.exception(f"При получении времени произошла ошибка")
         return False

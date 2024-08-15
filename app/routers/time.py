@@ -13,72 +13,13 @@ from app.core.dependencies import SessionDep
 router_time = APIRouter(prefix="/time", tags=["Время"])
 
 @router_time.get(
-        path="/",
+        path="",
         summary="Посмотреть время на день / на пару",
-        responses={
-            200: {
-                "description": "Список времени",
-                "content": {
-                    "application/json": {
-                        "example": 
-                        [
-                            {
-                                "day": "Понедельник",
-                                "time": [
-                                    {
-                                        "time_id": 12,
-                                        "num_lesson": 0,
-                                        "event_time": "8:30 - 9:15, 9:15 - 10:00"
-                                    }
-                                ]
-                            },
-                            {
-                                "day": "Среда",
-                                "time": [
-                                    {
-                                        "time_id": 2,
-                                        "num_lesson": 0,
-                                        "event_time": "8:30 - 9:15, 9:15 - 10:00"
-                                    },
-                                    {
-                                        "time_id": 8,
-                                        "num_lesson": 1,
-                                        "event_time": "10:20 - 11:05, 11:20 - 12:05"
-                                    },
-                                ]
-                                }
-                            ]
-                    }
-                },
-            },
-            404: {
-                "description": "Не найдено",
-                "content": {
-                    "application/json": {
-                        "example": 
-                        {
-                            "message": "Время еще не было установлено"
-                        }
-                          
-                    }
-                },
-            },
-
-            500: {
-                "description": "Ошибка",
-                "content": {
-                    "application/json": {
-                        "example": {
-                            "message": "Неизвестная ошибка при получении времени"
-                        }
-                    }
-                },
-            },
-        }
+        response_model=schemas.Check_time
 )
 async def get_time(
         session: SessionDep,
-        day: Optional[str | None] = Query(None, description="НЕОБЯЗАТЕЛЬНО День недели", example="Понедельник"),
+        day: Optional[schemas.Days | None] = Query(None, description="НЕОБЯЗАТЕЛЬНО День недели", example="Понедельник"),
         num_lesson: Optional[int | None] = Query(None, description="НЕОБЯЗАТЕЛЬНО Номер пары, 0-4, где 0 это классный час", ge=0, le=4, example=2),
 ) -> JSONResponse: 
     logger.info(f"Запрос на получение времени day: {day} num_lesson {num_lesson}")
@@ -88,7 +29,7 @@ async def get_time(
     if getting == []:
         return JSONResponse(content={"message": "Время еще не было установлено"}, status_code=404)
     if getting:
-        return JSONResponse(content=getting, status_code=200)
+        return JSONResponse(content=getting.model_dump(), status_code=200)
     else:
         return JSONResponse(content={"message": "Неизвестная ошибка при получении времени"}, status_code=500)
     

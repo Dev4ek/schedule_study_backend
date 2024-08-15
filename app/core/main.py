@@ -9,6 +9,7 @@ from contextlib import asynccontextmanager
 from collections.abc import AsyncIterator
 from redis import asyncio as aioredis
 import os
+from prometheus_fastapi_instrumentator import Instrumentator
 
 
 app = FastAPI(
@@ -26,7 +27,6 @@ app.add_middleware(
   allow_credentials=True,
   allow_headers = ["*"]
 )
-
 
 
 app.include_router(routers.lesson.router_lesson)
@@ -63,10 +63,10 @@ async def start():
                 os.system(f'rm -rf {full_path}')
                 
 
-    # Instrumentator().instrument(app).expose(app) # prometheus metrics
+    Instrumentator().instrument(app).expose(app) # prometheus metrics
 
 
-    config = uvicorn.Config("app.core.fastapi:app", host='0.0.0.0', port=8082, workers=1)
+    config = uvicorn.Config("app.core.main:app", host='0.0.0.0', port=8082, workers=1)
     server = uvicorn.Server(config)
  
     logger.info("Server FastAPI started")

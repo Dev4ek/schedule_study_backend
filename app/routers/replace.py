@@ -3,45 +3,88 @@ from fastapi.responses import JSONResponse
 from .. import schemas, utils
 from loguru import logger
 from app.core.dependencies import SessionDep
+from ..services import database as db
 
 
 router_replace = APIRouter(prefix="/replace", tags=["Замены"])
 
 
+@router_replace.get(
+        path="/check",
+        summary="Посмотреть установлена ли замена",
+        response_model=schemas.Replace_check
+)
+async def get_date(
+    session: SessionDep,
+    num_lesson: int = Query(..., description="Номер пары", ge=0, le=2, example=2),
+    cabinet: str = Query(..., description="Кабинет где будет проходить пара", example="405-1")
+) -> JSONResponse:
+    logger.info(f"Запрос проверку установлена ли замена. Кабинет: {cabinet}, номер пары: {num_lesson}")
+
+    gettting: bool | schemas.Replace_check = await utils.repalce_check(num_lesson, cabinet, session)
+    
+    if gettting:
+        logger.info(f"Отдаём ответ информацию о замене")
+        return JSONResponse(content=gettting.model_dump(), status_code=200)
+    else:
+        logger.info("Отдаём ответ ошибка при проверке замены")
+        return JSONResponse(content={"message": "Неизвестнеая ошибка при проверке замены"}, status_code=500)
+            
+        
+
+   
+
 
 
 @router_replace.get(
-        path="/all",
-        summary="Список всех замен для групп",
-        response_model=schemas.Replacements_all_out
+        path="/date",
+        summary="Посмотреть дату замен",
 )
-async def get_all_replacements(
+async def get_date(
     session: SessionDep,
 ) -> JSONResponse:
-    logger.info("Запрос на получение всех замен")
+    logger.info(f"Запрос просмотр даты замен")
 
-    getting: bool | schemas.Replacements_all_out = await utils.all_replacemetns(session)
+    result = await session.execute(db.select(db.table.Depends.date_replacements))
+    result_date = result.scalar()
 
+    return JSONResponse(content={"date": result_date}, status_code=200)
+   
+
+@router_replace.get(
+        path="/{replace_id}",
+        summary="Посмотреть информацию о замене по айди",
+        response_model=schemas.Replace_full_info
+)
+async def get_replacements(
+    session: SessionDep,
+    replace_id: int = Path(..., description="Айди замены", example=21)
+) -> JSONResponse:
+    logger.info(f"Запрос на получение информации о замене по айди {replace_id}")
+
+    getting: str | bool | schemas.Replace_full_info = await utils.info_replace_by_id(replace_id, session)
+
+    if getting == "Замена не найдена":
+        logger.info("Отдаём ответ замена не найдена")
+        return JSONResponse(content={"message": "Замена не найдена"}, status_code=404)
     if getting:
-        logger.info("Отдаём ответ список замен")
+        logger.info("Отдаём ответ данные о замене")
         return JSONResponse(content=getting, status_code=200)
     else:
         logger.error("Отдаём ответ. Ошибка при получении замен")
         return JSONResponse(content={"message": "Неизвестная ошибка при получении списка замен"}, status_code=500)
 
 
-
-
 @router_replace.get(
-        path="/{group}",
-        summary="Список замен для группы",
+        path="/group/{group}",
+        summary="Посмотреть замены для группы",
         response_model=schemas.Replace_out
 )
 async def get_replacements(
     session: SessionDep,
     group: str = Path(..., description="Группа", example="Исп-232")
 ) -> JSONResponse:
-    logger.info("Запрос на получение всех замен на группу {group}")
+    logger.info(f"Запрос на получение всех замен на группу {group}")
 
     getting: bool | schemas.Replace_out = await utils.replacemetns_group(group, session)
 
@@ -53,10 +96,32 @@ async def get_replacements(
         return JSONResponse(content={"message": "Неизвестная ошибка при получении списка замен"}, status_code=500)
 
 
-@router_replace.put(
+@router_replace.get(
+        path="/teacher/{teacher}",
+        summary="Посмотреть замены для учителя",
+        response_model=schemas.Replace_teacher_out
+)
+async def get_replacements(
+    session: SessionDep,
+    teacher: str = Path(..., description="Учитель", example="Демиденко Наталья Ильинична")
+) -> JSONResponse:
+    logger.info(f"Запрос на получение всех замен для учителя {teacher}")
+
+    getting: bool | schemas.Replace_teacher_out = await utils.replacemetns_teacher(teacher, session)
+
+    if getting:
+        logger.info("Отдаём ответ список замен для учителя")
+        return JSONResponse(content=getting, status_code=200)
+    else:
+        logger.error("Отдаём ответ. Ошибка при получении замен для учителя")
+        return JSONResponse(content={"message": "Неизвестная ошибка при получении списка замен"}, status_code=500)
+
+
+
+@router_replace.post(
         path="",
         tags=["Замены"],
-        summary="Добавить или изменить замену",
+        summary="Установить или изменить замену",
 )
 async def put_replace(
     session: SessionDep,
@@ -239,19 +304,21 @@ async def remove_replace(
 
 @router_replace.put(
         path="/date/{date}",
-        summary="Установить дату замен",
+        summary="Изменить дату замен",
 )
 async def set_date(
     session: SessionDep,
     date: str = Path(..., title="Дата замен", description="Дата установки замен", example="23 Сентября")
 ) -> JSONResponse:
-    logger.info(f"Запрос на удаление всех замен.")
+    logger.info(f"Запрос на установку даты замен")
+
+    setting: bool = await utils.set_date_replacements(date, session)
+
+    if setting:
+        logger.info("Дата для замен успешно установлена. Отдаём ответ")
+        return JSONResponse(content={"message": "Дата успешно установлена"}, status_code=200)
+    else:
+        logger.error("Неизвестная ошибка при установке даты замен")
+        return JSONResponse(content={"message": "Неизвестная ошибка установке даты для замен"}, status_code=500)
 
 
-
-    # if removing:
-    #     logger.info("Все замены успешно удалены. Отдаём ответ")
-    #     return JSONResponse(content={"message": "Все замены были удалены"}, status_code=200)
-    # else:
-    #     logger.error("Неизвестная ошибка при удалении всех замен. Отдаём ответ")
-    #     return JSONResponse(content={"message": "Неизвестная ошибка удалении всех замен"}, status_code=500)

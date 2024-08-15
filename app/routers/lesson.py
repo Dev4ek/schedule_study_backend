@@ -11,27 +11,6 @@ from app.services import database as db
 router_lesson = APIRouter(prefix="/lesson", tags=["Расписание"])
 
 
-
-@router_lesson.get(
-        path="/all",
-        summary="Посмотреть все пары на неделю     ",
-)
-async def get_all_lesssons(
-    session: SessionDep, # Сессия базы данных
-    num_week: Optional[int] = Query(None, description="НЕОБЯЗАТЕЛЬНО Номер недели", example="2",ge=1, le=2)
-) -> JSONResponse: 
-    logger.info(f"Запрос на просмотр всех пар")
-
-    getting: bool = await utils.get_all_lesssons(num_week, session)
-
-    if getting:
-        return JSONResponse(content={'message': "Пары успешно удалены"}, status_code=200)
-    
-    else:
-        logger.error(f"Отдаём ответ ошибка при удалении")
-        return JSONResponse(content={"message": "Неизвестная ошибка при удалении пар"}, status_code=500)
-
-
 @router_lesson.get(
         path="/group",
         summary="Посмотреть пары для группы с заменами",
@@ -80,7 +59,7 @@ async def check_lessons_teacher(
 
 @router_lesson.get(
         path="/check",
-        summary="Проверить установлена ли пара",
+        summary="Посмотреть установлена ли пара",
         response_model=schemas.Check_setted_output
 )
 async def check_setted_lesson(
@@ -121,7 +100,7 @@ async def get_lesson_by_id(
 
     if getting == "not found":
         logger.info(f"Отдаём ответ пара не найдена")
-        return JSONResponse(content="Пара не найдена", status_code=200)
+        return JSONResponse(content={"message": "Пара не найдена"}, status_code=404)
         
     elif getting:
         logger.info(f"Отдаём ответ информацию о паре")
@@ -132,9 +111,9 @@ async def get_lesson_by_id(
         return JSONResponse(content={"message": "Неизвестная ошибка получении информации"}, status_code=500)
 
 
-@router_lesson.put(
+@router_lesson.post(
         path="",
-        summary="Установить пару для группы",
+        summary="Установить или изменить пару",
         responses={
             200: {
                 "description": "Успешная установка",

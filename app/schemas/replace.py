@@ -23,9 +23,9 @@ class Replace_remove(BaseModel):
 class Replace_lesson_info(BaseModel):
     replace_id: int = Field(..., title="id в базе данных", examples=[43])
     item: str = Field(...,  title="Предмет", examples=["Математика", "Русский язык"])
-    teacher: str = Field(...,  title="Учитель", description="Полное ФИО учителя который будет преподавать пару", examples=["Демиденко Наталья Ильинична", "Лизенко Валерий Витальевич"])
-    cabinet: str = Field(...,  title="Кабинет", description="Кабинет где будет проходить пара", examples=["405-1", "36-2"])
     num_lesson: Annotated[int, Field(strict=True, ge=0, le=4, title="Номер пары", description="Номер пары, где 0-4, где - это классный час")]
+    cabinet: str = Field(...,  title="Кабинет", description="Кабинет где будет проходить пара", examples=["405-1", "36-2"])
+    teacher: str = Field(...,  title="Учитель", description="Полное ФИО учителя который будет преподавать пару", examples=["Демиденко Наталья Ильинична", "Лизенко Валерий Витальевич"])
 
 
 class Replace_out(BaseModel):
@@ -40,3 +40,18 @@ class Replacement_data(BaseModel):
 class Replacements_all_out(BaseModel):
     date: str = Field(..., title="Дата замен", description="Дата замен когда их добавили", examples=["2 Сентября", "28 Января"])
     data: list[Replacement_data] = Field(..., title="Информация", description="Информация о заменах с группами")
+    
+class Replace_full_info(BaseModel):
+    replace_id: int = Field(..., title="id в базе данных", examples=[43])
+    item: str = Field(...,  title="Предмет", examples=["Математика", "Русский язык"])
+    num_lesson: Annotated[int, Field(strict=True, ge=0, le=4, title="Номер пары", description="Номер пары, где 0-4, где - это классный час", examples=[2])]
+    cabinet: str = Field(...,  title="Кабинет", description="Кабинет где будет проходить пара", examples=["405-1", "36-2"])
+    teacher: str = Field(...,  title="Учитель", description="Полное ФИО учителя который будет преподавать пару", examples=["Демиденко Наталья Ильинична", "Лизенко Валерий Витальевич"])
+    group: str = Field(...,  title="Группа", examples=["Исп-232", "Исп-211"])
+
+
+
+class Replace_check(BaseModel):
+    use: bool = Field(..., title="True or False", description="true - замена есть, false - замены нет")
+    replace: Replace_full_info | None = Field(..., title="Инфо о замене", description="Полная инфомрация о замене")
+    

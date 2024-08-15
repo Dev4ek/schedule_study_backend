@@ -1,5 +1,5 @@
 from fastapi import HTTPException, Header, status, Security, Depends
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import OAuth2PasswordBearer, APIKeyHeader
 import os
 from . import config
 from icecream import ic
@@ -8,6 +8,8 @@ from typing import Annotated
 from sqlalchemy.ext.asyncio import AsyncSession
 from ..services import database as db
 
+security = APIKeyHeader(name='x-key')
+user_sec = APIKeyHeader(name='auth-token')
 
 SessionDep = Annotated[AsyncSession, Depends(db.get_session)]
 
@@ -21,3 +23,6 @@ def verify_version(
             detail="Version need upgrade",
         )
     return True
+
+
+# def user_token()

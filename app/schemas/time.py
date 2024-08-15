@@ -57,3 +57,17 @@ class Put_time(BaseModel):
 class Remove_time(BaseModel):
     day: Days = Field(..., title="День", examples=["Понедельник", "Вторник"])
     num_lesson: Annotated[int, Field(strict=True, ge=0, le=4, description="Номер пары, где 0-4, где - это классный час")]
+    
+    
+    
+class Info_time(BaseModel):
+    time_id: int = Field(..., title="id в базе данных", examples=[3])
+    num_lesson: Annotated[int, Field(strict=True, ge=0, le=4, description="Номер пары, где 0-4, где - это классный час")]
+    event_time: list[str] = Field(...,  title="Время проведения", description="Время когда будет проходить пара", examples=[ ["12:30 - 13:15","21:30 - 22:35"] ])
+        
+class Info_day(BaseModel):
+    day: Days = Field(..., title="День",description="День проведения пары", examples=["Понедельник", "Вторник"])
+    time: list[Info_time] = Field(..., title="Информация о времени", description="Информация когда будет проходить пара")
+
+class Check_time(BaseModel):
+    time: list[Info_day] = Field(..., title="Информация о времени", description="Информация о времени по дням и номер парам")
