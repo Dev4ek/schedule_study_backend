@@ -580,6 +580,7 @@ async def put_lesson(
                     teacher=payload.teacher,
                     cabinet=payload.cabinet,
                 )
+                .returning(db.table.Lessons.id)
             )
         else:
             logger.debug("Пара не найдена в базе данных. Формируем запрос на добавление пары")
@@ -594,6 +595,7 @@ async def put_lesson(
                     cabinet=payload.cabinet,
                     week=num_week,
                 )
+                .returning(db.table.Lessons.id)
             )
 
         logger.debug("Выполняем запрос в базу данных")

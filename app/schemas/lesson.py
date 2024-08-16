@@ -3,6 +3,8 @@ from pydantic import BaseModel, Field
 from typing_extensions import Annotated
 from .time import Days
 
+
+
 class Check_setted_lessons_output(BaseModel):
     lesson_id: int = Field(..., title="id в базе данных", examples=[34])
     group: str = Field(...,  title="Группа", description="Группа у которой будет проходить пара", examples=["Исп-232", "Исп-211"])

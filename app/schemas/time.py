@@ -49,6 +49,9 @@ class Days(str, Enum):
     Воскресенье = "Воскресенье"
 
 
+class Put_time_out(BaseModel):
+    time_id: int = Field(..., title="id", description="id в базе данных", examples=[3])
+
 class Put_time(BaseModel):
     day: Days = Field(..., title="День", examples=["Понедельник", "Вторник"])
     num_lesson: Annotated[int, Field(strict=True, ge=0, le=4, description="Номер пары, где 0-4, где - это классный час")]
@@ -57,7 +60,6 @@ class Put_time(BaseModel):
 class Remove_time(BaseModel):
     day: Days = Field(..., title="День", examples=["Понедельник", "Вторник"])
     num_lesson: Annotated[int, Field(strict=True, ge=0, le=4, description="Номер пары, где 0-4, где - это классный час")]
-    
     
     
 class Info_time(BaseModel):
@@ -71,3 +73,8 @@ class Info_day(BaseModel):
 
 class Check_time(BaseModel):
     time: list[Info_day] = Field(..., title="Информация о времени", description="Информация о времени по дням и номер парам")
+    
+    
+class Week_Day(BaseModel):
+    day: Days = Field(..., title="День", description="День недели", examples=["Понедельник", "Вторник"])
+    week: Annotated[int, Field(strict=True, title="Неделя", description="Номер текущей недели", ge=1, le=2)] # где 0 - это две недели сразу

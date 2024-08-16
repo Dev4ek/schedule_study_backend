@@ -14,25 +14,48 @@ router_replace = APIRouter(prefix="/replace", tags=["Замены"])
         summary="Посмотреть установлена ли замена",
         response_model=schemas.Replace_check
 )
-async def get_date(
+async def check_installed_replace(
     session: SessionDep,
     num_lesson: int = Query(..., description="Номер пары", ge=0, le=2, example=2),
-    cabinet: str = Query(..., description="Кабинет где будет проходить пара", example="405-1")
+    cabinet: str = Query(..., description="Кабинет где будет проходить пара", example="405-1"),
+    date: str = Query(..., description="Дата замены", example="23 Сентября")
 ) -> JSONResponse:
-    logger.info(f"Запрос проверку установлена ли замена. Кабинет: {cabinet}, номер пары: {num_lesson}")
+    logger.info(f"Запрос проверку установлена ли замена. Кабинет: {cabinet}, номер пары: {num_lesson}, дата: {date}")
+       
+    logger.debug("Делаем запрос в бд")
+    result = await session.execute(
+        db.select(db.table.Replacements)
+        .filter_by(
+                    num_lesson=num_lesson,
+                    cabinet=cabinet,
+                    date=date
+            )
+    )
 
-    gettting: bool | schemas.Replace_check = await utils.repalce_check(num_lesson, cabinet, session)
-    
-    if gettting:
-        logger.info(f"Отдаём ответ информацию о замене")
-        return JSONResponse(content=gettting.model_dump(), status_code=200)
-    else:
-        logger.info("Отдаём ответ ошибка при проверке замены")
-        return JSONResponse(content={"message": "Неизвестнеая ошибка при проверке замены"}, status_code=500)
-            
+    replace_info = result.scalars().first()
+
+    logger.info("Формируем pydantic model и возвращаем")
+    form_json = None
+    if replace_info:
+        form_json = schemas.Replace_full_info(
+                replace_id = replace_info.id,
+                group = replace_info.group,
+                date = replace_info.date,
+                num_lesson = replace_info.num_lesson,
+                cabinet = replace_info.cabinet,
+                item = replace_info.item,
+                teacher = replace_info.teacher,
+        )  
         
+    replace_info_model = schemas.Replace_check(
+        use=True if form_json else False,
+        replace=form_json
+        )
 
-   
+    return JSONResponse(content=replace_info_model.model_dump(), status_code=200)
+
+
+
 
 
 
@@ -45,10 +68,17 @@ async def get_date(
 ) -> JSONResponse:
     logger.info(f"Запрос просмотр даты замен")
 
+    logger.debug("Делаем запрос в бд")
     result = await session.execute(db.select(db.table.Depends.date_replacements))
     result_date = result.scalar()
 
+    logger.info("Возвращаем дату")
     return JSONResponse(content={"date": result_date}, status_code=200)
+   
+   
+   
+   
+   
    
 
 @router_replace.get(
@@ -60,20 +90,42 @@ async def get_replacements(
     session: SessionDep,
     replace_id: int = Path(..., description="Айди замены", example=21)
 ) -> JSONResponse:
-    logger.info(f"Запрос на получение информации о замене по айди {replace_id}")
+    logger.info(f"Запрос на получение информации о замене по айди. Айди замены: {replace_id}")
 
-    getting: str | bool | schemas.Replace_full_info = await utils.info_replace_by_id(replace_id, session)
-
-    if getting == "Замена не найдена":
-        logger.info("Отдаём ответ замена не найдена")
+    logger.debug("Выполняем запрос в бд")
+    result = await session.execute(
+        db.select(db.table.Replacements)
+        .filter_by(
+                    id=replace_id,
+            )
+    )
+    replace_info = result.scalars().first()
+    
+    if not replace_info:
+        logger.info("Замена не найдена. Отдаём ответ")
         return JSONResponse(content={"message": "Замена не найдена"}, status_code=404)
-    if getting:
-        logger.info("Отдаём ответ данные о замене")
-        return JSONResponse(content=getting, status_code=200)
-    else:
-        logger.error("Отдаём ответ. Ошибка при получении замен")
-        return JSONResponse(content={"message": "Неизвестная ошибка при получении списка замен"}, status_code=500)
+    
+    
+    logger.info("Формируем модель pydantic и вовзращаем")
+    replace_info_model = schemas.Replace_full_info(
+            replace_id = replace_info.id,
+            group = replace_info.group,
+            date = replace_info.date,
+            num_lesson = replace_info.num_lesson,
+            cabinet = replace_info.cabinet,
+            item = replace_info.item,
+            teacher = replace_info.teacher,
+    )  
 
+    return JSONResponse(content=replace_info_model.model_dump(), status_code=200)
+    
+    
+    
+    
+    
+    
+    
+    
 
 @router_replace.get(
         path="/group/{group}",
@@ -82,18 +134,46 @@ async def get_replacements(
 )
 async def get_replacements(
     session: SessionDep,
-    group: str = Path(..., description="Группа", example="Исп-232")
+    group: str = Path(..., description="Группа", example="Исп-232"),
+    date: str = Query(..., description="Дата замены", example="23 Сентября")
 ) -> JSONResponse:
-    logger.info(f"Запрос на получение всех замен на группу {group}")
+    logger.info(f"Запрос на получение всех замен для группы {group}, дата: {date}")
 
-    getting: bool | schemas.Replace_out = await utils.replacemetns_group(group, session)
+    logger.debug("Выполняем запрос в бд")
+    result = await session.execute(
+            db.select(db.table.Replacements)
+            .filter_by(
+                        group=group,
+                        date=date
+                )
+        )
+    results = result.all()
 
-    if getting:
-        logger.info("Отдаём ответ список замен")
-        return JSONResponse(content=getting, status_code=200)
-    else:
-        logger.error("Отдаём ответ. Ошибка при получении замен")
-        return JSONResponse(content={"message": "Неизвестная ошибка при получении списка замен"}, status_code=500)
+    logger.info("Формируем модель pydantic и вовзращаем")
+    list_replacements = []
+    
+    for data_replace in results:
+        for replace in data_replace:
+            list_replacements.append(schemas.Replace_lesson(
+                replace_id = replace.id,
+                num_lesson = replace.num_lesson,
+                item = replace.item,
+                teacher = replace.teacher,
+                cabinet = replace.cabinet,
+            ).model_dump())
+    
+    replacements_model = schemas.Replace_out(
+        group=group,
+        date=date,
+        replacements=list_replacements
+    )
+
+    return JSONResponse(content=replacements_model.model_dump(), status_code=200)
+
+
+
+
+
 
 
 @router_replace.get(
@@ -103,30 +183,61 @@ async def get_replacements(
 )
 async def get_replacements(
     session: SessionDep,
-    teacher: str = Path(..., description="Учитель", example="Демиденко Наталья Ильинична")
+    teacher: str = Path(..., description="Учитель", example="Демиденко Наталья Ильинична"),
+    date: str = Query(..., description="Дата замены", example="23 Сентября")
 ) -> JSONResponse:
-    logger.info(f"Запрос на получение всех замен для учителя {teacher}")
+    logger.info(f"Запрос на получение всех замен для учителя {teacher}, дата: {date}")
 
-    getting: bool | schemas.Replace_teacher_out = await utils.replacemetns_teacher(teacher, session)
 
-    if getting:
-        logger.info("Отдаём ответ список замен для учителя")
-        return JSONResponse(content=getting, status_code=200)
-    else:
-        logger.error("Отдаём ответ. Ошибка при получении замен для учителя")
-        return JSONResponse(content={"message": "Неизвестная ошибка при получении списка замен"}, status_code=500)
+    logger.debug("Выполняем запрос в бд")
+    result = await session.execute(
+            db.select(db.table.Replacements)
+            .filter_by(
+                        teacher=teacher,
+                        date=date
+                )
+        )
+    results = result.all()
+
+    logger.info("Формируем модель pydantic и вовзращаем")
+    list_replacements = []
+    
+    for data_replace in results:
+        for replace in data_replace:
+            list_replacements.append(schemas.Replace_lesson_teacher(
+                replace_id = replace.id,
+                num_lesson = replace.num_lesson,
+                item = replace.item,
+                group = replace.group,
+                cabinet = replace.cabinet,
+            ).model_dump())
+    
+    replacements_model = schemas.Replace_teacher_out(
+        teacher=teacher,
+        date=date,
+        replacements=list_replacements,
+    )
+
+    return JSONResponse(content=replacements_model.model_dump(), status_code=200)
+ 
+
+
+
+
 
 
 
 @router_replace.post(
         path="",
-        tags=["Замены"],
         summary="Установить или изменить замену",
+        response_model=schemas.Replace_id
+        
 )
 async def put_replace(
     session: SessionDep,
     payload: schemas.Replace_in = Body(..., description="Замена", example={
         "group": "Исп-232",
+        "date": "23 Сентября",
         "day": "Понедельник",
         "item": "Русский язык",
         "num_lesson": 1,
@@ -134,124 +245,133 @@ async def put_replace(
         "cabinet": "36-2"
     })
 ) -> JSONResponse:
-    
     logger.info(f"Запрос на вставку замены {payload.model_dump_json()}")
 
-    adding: bool = await utils.put_replace(payload, session)
+    logger.debug("Делаем запрос в бд")
+    replace_id = await session.execute(
+                db.select(db.table.Replacements.id)
+                .filter_by(
+                            group=payload.group,
+                            num_day=schemas.Day_to_num[payload.day],
+                            num_lesson=payload.num_lesson,
+                            date=payload.date
+                
+                )
+    )
+    exists_replace = replace_id.scalar_one_or_none()
 
-    if adding:
-        logger.info("Замена успешно добавлена. Отдаём ответ")
-        return JSONResponse(content={"message": "Замена успешно добавлена"}, status_code=200)
+    if exists_replace:
+        logger.debug("Замена существует. Формируем запрос на изменение замены")
+        query = (
+            db.update(
+                db.table.Replacements
+            )
+            .values(
+                item=payload.item,
+                teacher=payload.teacher,
+                cabinet=payload.cabinet,
+            )
+            .filter_by(
+                    group=payload.group,
+                    num_day=schemas.Day_to_num[payload.day],
+                    num_lesson=payload.num_lesson,
+                    date=payload.date,
+            )
+            .returning(db.table.Replacements.id)
+        )
+
     else:
-        logger.error("Ошибка при добавлении замены. Отдаём ответ")
-        return JSONResponse(content={"message": "Неизвестная ошибка при добавлении замены"}, status_code=500)
+        logger.debug("Замена не существует. Формируем запрос на добавление замены")
+
+        query = (
+            db.insert(db.table.Replacements)
+            .values(
+                group=payload.group,
+                num_day=schemas.Day_to_num[payload.day],
+                num_lesson=payload.num_lesson,
+                item=payload.item,
+                teacher=payload.teacher,
+                cabinet=payload.cabinet,
+                date=payload.date,
+            )
+            .returning(db.table.Replacements.id)
+        )
+
+    logger.debug("Делаем запрос в бд")
+    result = await session.execute(query)
+    replace_id = result.scalar()
+    await session.commit()
+
+    logger.info("Формируем модель pydantic и вовзращаем")
+    
+    repalce_id_model = schemas.Replace_id(replace_id=replace_id)
+
+    return JSONResponse(content=repalce_id_model.model_dump(), status_code=200)
+
+
+
+
+
+
 
 
 @router_replace.delete(
         path="",
         summary="Удалить замену",
-        responses={
-            200: {
-                "description": "Успешное удаление",
-                "content": {
-                    "application/json": {
-                        "example": {
-                            "message": "Замена успешно удалена"
-                        }
-                    }
-                },
-            },
-
-            404: {
-                "description": "Не найдена",
-                "content": {
-                    "application/json": {
-                        "example": {
-                            "message": "Замена не найдена"
-                        }
-                    }
-                },
-            },
-
-            500: {
-                "description": "Ошибка при удалении замены",
-                "content": {
-                    "application/json": {
-                        "example": {
-                            "message": "Неизвестная ошибка удалении замены"
-                        }
-                    }
-                },
-            },
-        },
+        description="При удалении возвращает True, Если удалено 0 замен то возвращает False"
 )
 async def remove_replace(
     session: SessionDep,
     payload: schemas.Replace_remove = Body(..., description="Параметры замены", example={
         "group": "Исп-232",
+        "date": "23 Сентября",
         "day": "Понедельник",
         "num_lesson": 1,
     })
 ) -> JSONResponse:
     logger.info(f"Запрос на удаление замены. Payload: {payload.model_dump_json()}")
 
-    removing: bool | str = await utils.remove_replace(payload, session)
+    logger.debug("Выполняем запрос в бд")
+    result = await session.execute(
+         db.delete(db.table.Replacements)
+        .filter(
+                db.table.Replacements.group == payload.group,
+                db.table.Replacements.num_day == schemas.Day_to_num[payload.day],
+                db.table.Replacements.num_lesson == payload.num_lesson,
+                db.table.Replacements.date == payload.date,
+        )
+    )
+    await session.commit()
 
-    if removing == "not found":
-        logger.info("Замена не найдена. Отдаём ответ")
-        return JSONResponse(content={"message": "Замена не найдена"}, status_code=404)
-    elif removing:
-        logger.info("Замена успешно удалена. Отдаём ответ")
-        return JSONResponse(content={"message": "Замена успешно удалена"}, status_code=200)
+    if result.rowcount > 0:
+        logger.info("Замена успешно удалена. Возвращаем True")                    
+        return JSONResponse(content=True, status_code=200)
     else:
-        logger.error("Неизвестная ошибка при удалении . Отдаём ответ")
-        return JSONResponse(content={"message": "Неизвестная ошибка удалении замены"}, status_code=500)
-
+        return JSONResponse(content=False, status_code=404)
 
 
 
 @router_replace.delete(
         path="/all",
         summary="Удалить все замены",
-        responses={
-            200: {
-                "description": "Успешное удаление всех замен",
-                "content": {
-                    "application/json": {
-                        "example": {
-                            "message": "Все замены были удалены"
-                        }
-                    }
-                },
-            },
-
-
-            500: {
-                "description": "Ошибка при удалении всех замен",
-                "content": {
-                    "application/json": {
-                        "example": {
-                            "message": "Неизвестная ошибка удалении всех замен"
-                        }
-                    }
-                },
-            },
-        },
+        description="При удалении возвращает True"
 )
 async def delete_all(
     session: SessionDep,
 ) -> JSONResponse:
     logger.info(f"Запрос на удаление всех замен.")
 
-    removing: bool = await utils.remove_all_replacements(session)
 
-    if removing:
-        logger.info("Все замены успешно удалены. Отдаём ответ")
-        return JSONResponse(content={"message": "Все замены были удалены"}, status_code=200)
-    else:
-        logger.error("Неизвестная ошибка при удалении всех замен. Отдаём ответ")
-        return JSONResponse(content={"message": "Неизвестная ошибка удалении всех замен"}, status_code=500)
-
+    logger.debug("Выполняем запрос в бд")
+    await session.execute(
+                        query_delete = (
+                        db.delete(db.table.Replacements)
+                    )
+        )
+    await session.commit()
+    
+    logger.info("Все замены успешно удалены. Возвращаем True")
+    return JSONResponse(content=True, status_code=200)
 
 
 
@@ -259,47 +379,28 @@ async def delete_all(
 @router_replace.delete(
         path="/{replace_id}",
         summary="Удалить замену по айди",
-        responses={
-            200: {
-                "description": "Успешное удаление",
-                "content": {
-                    "application/json": {
-                        "example": {
-                            "message": "Замена успешно удалена"
-                        }
-                    }
-                },
-            },
+        description="При удалении возвращает True, Если удалено 0 замен то возвращает False"
 
-
-            500: {
-                "description": "Ошибка при удалении замены",
-                "content": {
-                    "application/json": {
-                        "example": {
-                            "message": "Неизвестная ошибка удалении замены"
-                        }
-                    }
-                },
-            },
-        },
 )
 async def remove_replace(
     session: SessionDep,
     replace_id: int = Path(..., description="айди замены", example=5)
 ) -> JSONResponse:
-    logger.info(f"Запрос на удаление замены по")
+    logger.info(f"Запрос на удаление замены по айди. Айди замены {replace_id}")
 
-    removing: bool = await utils.remove_replace_by_id(replace_id, session)
+    logger.debug("Выполняем запрос в бд")
+    result = await session.execute(db.delete(db.table.Replacements).filter_by(id=replace_id))
+    await session.commit()
 
-  
-    if removing:
-        logger.info("Замена успешно удалена. Отдаём ответ")
-        return JSONResponse(content={"message": "Замена успешно удалена"}, status_code=200)
+    if result.rowcount > 0:
+        logger.info("Замена успешно удалена. Возвращаем True")                    
+        return JSONResponse(content=True, status_code=200)
     else:
-        logger.error("Неизвестная ошибка при удалении . Отдаём ответ")
-        return JSONResponse(content={"message": "Неизвестная ошибка удалении замены"}, status_code=500)
+        logger.info("Замена не найдена. Возвращаем False")                    
+        return JSONResponse(content=False, status_code=404)
 
+    
+    
 
 
 @router_replace.put(
@@ -312,13 +413,12 @@ async def set_date(
 ) -> JSONResponse:
     logger.info(f"Запрос на установку даты замен")
 
-    setting: bool = await utils.set_date_replacements(date, session)
-
-    if setting:
-        logger.info("Дата для замен успешно установлена. Отдаём ответ")
-        return JSONResponse(content={"message": "Дата успешно установлена"}, status_code=200)
-    else:
-        logger.error("Неизвестная ошибка при установке даты замен")
-        return JSONResponse(content={"message": "Неизвестная ошибка установке даты для замен"}, status_code=500)
-
+    logger.debug("Делаем запрос в бд")
+    await session.execute(
+                db.update(db.table.Depends)
+                .values(date_replacements=date)
+    )
+    await session.commit()
+    logger.info("Успешно изменено. Возвращает True")
+    return JSONResponse(content=True, status_code=200)
 

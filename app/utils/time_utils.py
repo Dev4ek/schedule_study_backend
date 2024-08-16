@@ -17,7 +17,7 @@ moscow_tz = pytz.timezone('Europe/Moscow')
 async def set_time(
         payload: schemas.Put_time,
         session: SessionDep, # Сессия базы данных
-) -> bool:  
+) -> schemas.Put_time_out | bool:  
     
     num_day = schemas.Day_to_num[payload.day]
 
@@ -60,21 +60,26 @@ async def set_time(
                     time=payload.time,
                     num_day=num_day
                     )
+                .returning(db.table.Times.id)
             )
 
         logger.success(f"Делаем запрос в бд")
-        await session.execute(query)
+        result = await session.execute(query)
+        time_id = result.scalar() 
         await session.commit()
 
-        logger.debug("Время успешно установлено в бд. Возвращаем True")
-        return True
+
+        logger.debug("Время успешно установлено в бд. Возвращаем айди установленного времени")
+        return {
+                 "time_id": time_id   
+                }
 
     except Exception:
         logger.exception(f"при установке нового времени произошла ошибка")
         return False
     
 
-async def get_day_and_week_number():
+async def get_day_and_week_number(): 
     try:
         
         logger.debug("Получаем today: datetime now дату и время")

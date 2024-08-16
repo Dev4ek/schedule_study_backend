@@ -1,43 +1,15 @@
 from ..services import database as db
 from loguru import logger
 from app.core.dependencies import SessionDep
+from app import schemas
 
 
-async def all_groups(
-    session: SessionDep, # Сессия базы данных
-) -> dict:
-    try:
-        logger.debug("Формируем запрос на получение всех групп")
-        query = (
-            db.select(db.table.Groups.id, db.table.Groups.group)
-            .order_by(db.table.Groups.group)
-        )
-
-        logger.debug("Выполняем запрос")
-        result = await session.execute(query)
-
-        logger.debug("Получаем результат")
-        groups_data = result.all()
-
-        groups = []
-        for group in groups_data:
-            groups.append({
-                "group_id": group.id,
-                "group": group.group
-            })
-
-        logger.debug("Формируем json список групп для ответа")
-        return groups
-
-    except Exception:
-        logger.exception(f"Произошла ошибка при получении всех групп")
-        return False
 
 
 async def put_group(
         group: str, # example: "Исп-232"
         session: SessionDep # Сессия базы данных
-) -> bool | str:
+) -> bool | str | schemas.group_id:
     try:
         logger.debug("Формируем запрос на проверку наличие группы в бд")
         query_check = (
@@ -60,14 +32,16 @@ async def put_group(
             query = (
                 db.insert(db.table.Groups)
                 .values(group=group)
+                .returning(db.table.Groups.id)
             )
 
         logger.debug("Выполняем запрос в бд")
-        await session.execute(query)
+        result = await session.execute(query)
+        group_id = result.scalar()
         await session.commit()
 
         logger.debug("Группа успешно добавлена. Возвращаем True")
-        return True
+        return schemas.group_id(group_id=group_id)
 
     except Exception:
         logger.exception(f"Произошла ошибка при добавлении группы в бд")

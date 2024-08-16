@@ -26,6 +26,7 @@ class Replacements(Base):
 
     id: Mapped[Integer] = mapped_column(Integer, primary_key=True, autoincrement=True)
     group: Mapped[String] = mapped_column(String(10), index=True)
+    date: Mapped[str] = mapped_column(String(50))
 
     item: Mapped[str] = mapped_column(nullable=True)
     num_day: Mapped[int] = mapped_column(SMALLINT())

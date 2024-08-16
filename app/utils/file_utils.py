@@ -165,6 +165,7 @@ async def get_file_raspisanie(session: SessionDep):
 
         def insert_group_pars():
             count_group = 0
+            ic(lessons_sorted)
             
             column = 2
             for group in lessons_sorted:

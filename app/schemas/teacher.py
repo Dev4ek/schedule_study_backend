@@ -49,8 +49,7 @@ class Schedule_tacher_output(BaseModel):
 
 
 
-
-class Replace_lesson_teacher_info(BaseModel):
+class Replace_lesson_teacher(BaseModel):
     replace_id: int = Field(..., title="id в базе данных", examples=[43])
     item: str = Field(...,  title="Предмет", examples=["Математика", "Русский язык"])
     num_lesson: Annotated[int, Field(strict=True, ge=0, le=4, title="Номер пары", description="Номер пары, где 0-4, где - это классный час")]
@@ -61,4 +60,4 @@ class Replace_lesson_teacher_info(BaseModel):
 class Replace_teacher_out(BaseModel):
     teacher: str = Field(...,  title="Учитель", examples=["Демиденко Наталья Ильнична"])
     date: str = Field(..., title="Дата", examples=["2 Сентября", "28 Января"])
-    replacements: list[Replace_lesson_teacher_info] = Field(..., title="Информация о заменах", description="Информация о заменах")
+    replacements: list[Replace_lesson_teacher] | list[None] = Field(..., title="Информация о заменах", description="Информация о заменах")

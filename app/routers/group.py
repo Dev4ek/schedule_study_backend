@@ -1,106 +1,56 @@
 from fastapi import APIRouter, Path
 from fastapi.responses import JSONResponse
+
+from app import schemas
 from .. import utils
 from loguru import logger
 from app.core.dependencies import SessionDep
+from app.services import database as db
 
 router_group = APIRouter(prefix="/group", tags=["Группы"])
 
 @router_group.get(
         path="/all",
         summary="Список всех групп",
-        responses={
-            200: {
-                "description": "Получен список",
-                "content": {
-                    "application/json": {
-                        "example": [
-                            {
-                                "group_id": 2,
-                                "group": "Исп-232"
-                            },
-                            {
-                                "group_id": 3,
-                                "group": "Тод-211"
-
-                            }
-                            ]
-                    }
-                },
-            },
-
-            500: {
-                "description": "Ошибка при получении списка",
-                "content": {
-                    "application/json": {
-                        "example": {
-                            "message": "Неизвестная ошибка при получении списка групп"
-                        }
-                    }
-                },
-            },
-        }
+        response_model=list[schemas.info_group]
 )
 async def get_groups(
     session: SessionDep # Сессия базы даныых
 ) -> JSONResponse:
     logger.info("Запрос на получение списка всех групп")
 
-    getting = await utils.all_groups(session)
+    logger.debug("Выполняем запрос в дб")
+    result = await session.execute(
+            db.select(db.table.Groups.id, db.table.Groups.group)
+            .order_by(db.table.Groups.group)
+    )
 
-    if getting:
-        logger.info("Отдаём ответ сформированный список")
-        return JSONResponse(content=getting, status_code=200)
-    else:
-        logger.error("Неизвестная ошибка при получении списка всех групп. Отдаём ответ")
-        return JSONResponse(content={"message": "Неизвестная ошибка при получении списка групп"}, status_code=500)
+    groups_data = result.all()
+
+    logger.debug("Формируем pydantic model для ответа")
+    groups = []
+    for group in groups_data:
+        groups.append(
+            schemas.info_group(
+            group_id = group.id,
+            group = group.group
+            ).model_dump())
+
+    return JSONResponse(content=groups, status_code=200)
     
 
 @router_group.put(
-        path="/put/{group}",
+        path="/{group}",
         summary="Добавить группу",
-        responses={
-            200: {
-                "description": "Успешное добавление",
-                "content": {
-                    "application/json": {
-                        "example": {
-                            "message": "Группа успешно добавлена"
-                        }
-                    }
-                },
-            },
-
-            409: {
-                "description": "Уже существует",
-                "content": {
-                    "application/json": {
-                        "example": {
-                            "message": "Группа уже существует"
-                        }
-                    }
-                },
-            },
-
-            500: {
-                "description": "Ошибка при добавлении группы",
-                "content": {
-                    "application/json": {
-                        "example": {
-                            "message": "Неизвестная ошибка при добавлении группы"
-                        }
-                    }
-                },
-            },
-        }
+        response_model=schemas.group_id
 )
 async def put_group(
     session: SessionDep, # Сессия базы даных
-    group: str = Path(..., description="Группа", example="Исп-232")
+    group: str = Path(..., title="Группа", example="Исп-232")
 ) -> JSONResponse:
     logger.info(f"Запрос на вставку группы. Группа: {group}")
 
-    adding: bool | str = await utils.put_group(group, session)
+    adding: bool | str | schemas.group_id = await utils.put_group(group, session)
 
     if adding == "exists":
         logger.info("Группа уже существует. Отдаём ответ")
@@ -108,7 +58,7 @@ async def put_group(
 
     elif adding:
         logger.info("Группа успешно добавлена. Отдаём ответ")
-        return JSONResponse(content={"message": "Группа успешно добавлена"}, status_code=200)
+        return JSONResponse(content=adding.model_dump(), status_code=200)
 
     else:
         logger.error("Неизвестная ошибка при добавлении группы. Отдаём ответ")
@@ -116,7 +66,7 @@ async def put_group(
 
 
 @router_group.delete(
-        path="/remove/{group}",
+        path="/{group}",
         summary="Удалить группу",
         responses={
             200: {

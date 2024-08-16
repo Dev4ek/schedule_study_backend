@@ -14,7 +14,7 @@ router_time = APIRouter(prefix="/time", tags=["Время"])
 
 @router_time.get(
         path="",
-        summary="Посмотреть время на день / на пару",
+        summary="Посмотреть время на день и/или пару",
         response_model=schemas.Check_time
 )
 async def get_time(
@@ -34,36 +34,29 @@ async def get_time(
         return JSONResponse(content={"message": "Неизвестная ошибка при получении времени"}, status_code=500)
     
 
-
-@router_time.put(
-        path="/put",
-        summary="Установить время для пары",
-        responses={
-            200: {
-                "description": "Список времени",
-                "content": {
-                    "application/json": {
-                        "example": 
-                       {
-                           "message": "Время успешно установлено"
-                       }
-                    }
-                },
-            },
-
-            500: {
-                "description": "Ошибка при установке",
-                "content": {
-                    "application/json": {
-                        "example": {
-                            "message": "Неизвестная ошибка при установке времени"
-                        }
-                    }
-                },
-            },
-        }
+@router_time.get(
+        path="/weekday",
+        summary="Посмотреть текущую неделю и день",
+        response_model=schemas.Week_Day
 )
-async def put_time(
+async def get_week() -> JSONResponse: 
+    logger.info(f"Запрос на получение текущей недели")
+
+    num_day, num_week = await utils.get_day_and_week_number()
+
+    model = schemas.Week_Day(day=schemas.Num_to_day[num_day], week=num_week)
+    
+    return JSONResponse(content=model.model_dump(), status_code=200)
+    
+
+
+@router_time.post(
+        path="",
+        summary="Установить или изменить время для пары",
+        response_model=schemas.Put_time_out,
+        description="Устанавливает или изменяет время для пары и возвращает айди"
+)
+async def set_time(
         session: SessionDep,
         payload: schemas.Put_time = Body(..., description="Параметры для пары", example={
             "day": "Понедельник",
@@ -71,21 +64,21 @@ async def put_time(
             "time": "8:30 - 9:15, 9:15 - 10:00"
         })
 ) -> JSONResponse: 
-    logger.info(f"Запрос на вставку времени. Payload {payload.model_dump_json()}")
+    logger.info(f"Запрос на установку времени для пары. Payload {payload.model_dump_json()}")
 
-    setting: bool = await utils.set_time(payload, session)
+    setting: schemas.Put_time_out | bool = await utils.set_time(payload, session)
 
     if setting:
         logger.info("Отдаём ответ. Время успешно установлено")
-        return JSONResponse(content={"message": "Время успешно установлено"}, status_code=200)
+        return JSONResponse(content=setting, status_code=200)
     else:
         logger.error("Отдаём ответ. Неизвестная ошибка")
         return JSONResponse(content={"message": "Неизвестная ошибка при установке времени"}, status_code=500)
 
 
 @router_time.delete(
-        path="/remove",
-        summary="Удалить установеленное время",
+        path="",
+        summary="Удалить время",
         responses={
             200: {
                 "description": "Время удалено",
