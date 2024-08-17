@@ -41,7 +41,7 @@ class info_day(BaseModel):
     lessons: list[Formed_lesson_for_teacher_app] | list[Formed_lesson_for_teacher] = Field(..., title="Список пар", description="Список пар на день")
 
     
-class Schedule_tacher_output(BaseModel):
+class Schedule_teacher_out(BaseModel):
     teacher: str = Field(...,  title="Учитель", description="Учитель который будет проводить пару", examples=["Демиденко Натьалья Ильинична"])
     week: Annotated[int, Field(strict=True, ge=1, le=2, description="Номер недели")]
     schedule: list[info_day] = Field(..., title="Список дней со списком пар", description="Список дней с парами")

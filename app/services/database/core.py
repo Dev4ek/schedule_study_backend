@@ -1,5 +1,5 @@
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, select
 import os
 from sqlalchemy.orm import sessionmaker
 from . import base_ORM
@@ -53,8 +53,10 @@ async def create_tables():
     
     Session = sessionmaker(bind=engine)
     session = Session()
-    session.execute(insert(base_ORM.Depends).values(date_replacements="1 Сентября")) 
-    session.commit()
+    check_date = session.execute(select(base_ORM.Depends.date_replacements))
+    if check_date.scalar_one_or_none() == None:
+        session.execute(insert(base_ORM.Depends).values(date_replacements="1 Сентября")) 
+        session.commit()
     session.close()
     return True
 

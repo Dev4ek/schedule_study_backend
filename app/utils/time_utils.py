@@ -307,7 +307,7 @@ async def get_time(
         logger.debug("Преобразуем словарь в нужный формат списка")
         for num_day, lessons in day_dict.items():
             time_keys.append(
-                schemas.Info_day(
+                schemas.Info_day_time(
                     day = schemas.Num_to_day[num_day],
                     time = lessons
                 ))

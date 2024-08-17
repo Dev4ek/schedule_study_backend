@@ -51,7 +51,7 @@ async def get_lessons(
 @router_app.get(
         path="/teacher/{teacher}",
         summary="Посмотреть расписание для учителя",
-        response_model=schemas.Schedule_tacher_output
+        response_model=schemas.Schedule_teacher_out
        
 )
 async def get_lesson_for_teacher(
@@ -66,13 +66,13 @@ async def get_lesson_for_teacher(
         logger.debug(f"Расписание есть в кеше redis")
 
         logger.debug("Формируем ответ в pydantic model")
-        cache_schedule_model = schemas.Schedule_tacher_output(**cache_schedule).model_dump()
+        cache_schedule_model = schemas.Schedule_teacher_out(**cache_schedule).model_dump()
         
         logger.info(f"Вовзращаем сформированнное json расписание для учиттеля. Учитель: {teacher}")
         return JSONResponse(content=cache_schedule_model, status_code=200)
 
     logger.debug(f"Расписание не найдено в кеше redis. Запускем функцию формирования расписания")
-    getting: schemas.Schedule_tacher_output | bool = await utils.get_lessons_teacher_app(teacher, session)
+    getting: schemas.Schedule_teacher_out | bool = await utils.get_lessons_teacher_app(teacher, session)
 
     if getting:
         logger.debug("Устанавливаем сформированное расписание в кеш redis")

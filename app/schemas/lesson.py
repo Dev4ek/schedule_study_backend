@@ -5,7 +5,7 @@ from .time import Days
 
 
 
-class Check_setted_lessons_output(BaseModel):
+class Info_setted_lessons_output(BaseModel):
     lesson_id: int = Field(..., title="id в базе данных", examples=[34])
     group: str = Field(...,  title="Группа", description="Группа у которой будет проходить пара", examples=["Исп-232", "Исп-211"])
     item: str = Field(...,  title="Предмет", description="Предмет который будет проходить", examples=["Математика", "Русский язык"])
@@ -18,7 +18,7 @@ class Check_setted_lessons_output(BaseModel):
 
 class Check_setted_output(BaseModel):
     use: bool = Field(..., title="Да Нет", description="True пара есть, False пары нет")
-    lesson: Check_setted_lessons_output | None = Field(None, title="Пара", description="Если пара есть, то она присутствует здесь")
+    lesson: Info_setted_lessons_output | None = Field(None, title="Пара", description="Если пара есть, то она присутствует здесь")
 
 class Lesson_check_in(BaseModel):
     day: Days = Field(..., title="День недели", description="В какой день недели этот предмет будет проходить", examples=["Понедельник", "Вторник"])
@@ -71,25 +71,26 @@ class Schedule_app_output(BaseModel):
 
 
 
-class Formed_lesson_for_student(BaseModel):
+class Info_lesson(BaseModel):
     lesson_id: int = Field(..., title="id в базе данных", examples=[34])
     item: str = Field(...,  title="Предмет", description="Предмет который будет проходить", examples=["Математика", "Русский язык"])
     cabinet: str = Field(...,  title="Кабинет", description="Кабинет где будет проходить пара", examples=["405-1", "36-2"])
-    teacher: str = Field(...,  title="Учитель", description="Полное ФИО учителя который будет преподавать пару", examples=["Лизенко Валерий Витальевич"])
     num_lesson: Annotated[int, Field(strict=True, ge=0, le=4, description="Номер пары")]
+    teacher: str = Field(...,  title="Учитель", description="Полное ФИО учителя который будет преподавать пару", examples=["Лизенко Валерий Витальевич"])
+    group: str = Field(...,  title="Группа", description="Группа у которой будет проходить пара", examples=["Исп-232", "Исп-211"])
     replace: Formed_replace_for_student | None = Field(..., description="Замена пары")
 
 
-class info_day(BaseModel):
+class info_day_lesson(BaseModel):
     day: Days | str = Field(..., title="День", examples=["Понедельник", "Вторник"])
     date: str = Field(..., title="Дата", examples=["2 Сентября", "28 Января"])
-    lessons: list[Formed_lesson_for_student] = Field(..., title="Список пар", description="Список пар на день")
+    lessons: list[Info_lesson] = Field(..., title="Список пар", description="Список пар на день")
 
 
-class Schedule_output(BaseModel):
+class Schedule_group_out(BaseModel):
     group: str = Field(...,  title="Группа", description="Группа у которой будет проходить пара", examples=["Исп-232", "Исп-211"])
     week: Annotated[int, Field(strict=True, ge=1, le=2, description="Номер недели")]
-    schedule: list[info_day] = Field(..., title="Список дней со списком пар", description="Список дней с парами")
+    schedule: list[info_day_lesson] | list[None] = Field(..., title="Список дней со списком пар", description="Список дней с парами")
 
 
 class Remove_lesson(BaseModel):
@@ -97,6 +98,7 @@ class Remove_lesson(BaseModel):
     day: Days = Field(..., title="День", examples=["Понедельник", "Вторник"])
     num_lesson: Annotated[int, Field(strict=True, ge=0, le=4, description="Номер пары, где 0-4, где - это классный час")]
     week: Annotated[int, Field(strict=True, ge=0, le=2, description="Номер недели 0 - это 1 и 2 вместе")]
+    
     
     
 class Info_lesson_output(BaseModel):
